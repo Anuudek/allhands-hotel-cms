@@ -92,3 +92,15 @@ test('revoking a badge leaves other owners alone', function (BadgeRepository $ba
     expect($badges->codes($user))->toBe([])
         ->and($badges->codes($other))->toBe(['ACH_Shared']);
 })->with('badge drivers');
+
+test('deleting a badge model removes only that row', function () {
+    $user = User::factory()->create();
+
+    $keep = $user->badges()->create(['slot_id' => 0, 'badge_code' => 'ACH_Keep1']);
+    $delete = $user->badges()->create(['slot_id' => 0, 'badge_code' => 'ACH_Delete1']);
+
+    $delete->delete();
+
+    expect($user->badges()->pluck('badge_code')->all())->toBe(['ACH_Keep1'])
+        ->and($keep->fresh())->not->toBeNull();
+});
