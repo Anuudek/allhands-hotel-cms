@@ -36,7 +36,9 @@ class ArcturusPlayerRepository implements PlayerRepository
             $sso = sprintf('%s-%s', Str::replace(' ', '', setting('hotel_name', 'Atom')), Str::uuid());
 
             if (! User::where('auth_ticket', $sso)->exists()) {
-                $user->update(['auth_ticket' => $sso]);
+                // auth_ticket is guarded against mass assignment, so this
+                // trusted path has to write it explicitly.
+                $user->forceFill(['auth_ticket' => $sso])->save();
 
                 return $sso;
             }

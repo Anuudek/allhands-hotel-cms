@@ -94,13 +94,18 @@ test('revoking a badge leaves other owners alone', function (BadgeRepository $ba
 })->with('badge drivers');
 
 test('deleting a badge model removes only that row', function () {
+    // users_badges carries a real auto-increment key again, so Eloquent can
+    // address a single row; a keyed delete used to wipe every badge the user
+    // owned. The relation comes from the driver - User has no badges() of its
+    // own, because the table differs per emulator.
+    $badges = new ArcturusBadgeRepository;
     $user = User::factory()->create();
 
-    $keep = $user->badges()->create(['slot_id' => 0, 'badge_code' => 'ACH_Keep1']);
-    $delete = $user->badges()->create(['slot_id' => 0, 'badge_code' => 'ACH_Delete1']);
+    $keep = $badges->relation($user)->create(['slot_id' => 0, 'badge_code' => 'ACH_Keep1']);
+    $delete = $badges->relation($user)->create(['slot_id' => 0, 'badge_code' => 'ACH_Delete1']);
 
     $delete->delete();
 
-    expect($user->badges()->pluck('badge_code')->all())->toBe(['ACH_Keep1'])
+    expect($badges->relation($user)->pluck('badge_code')->all())->toBe(['ACH_Keep1'])
         ->and($keep->fresh())->not->toBeNull();
 });

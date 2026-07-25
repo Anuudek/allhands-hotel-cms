@@ -42,7 +42,12 @@ test('registration still persists the guarded starting balance', function () {
 test('issuing an sso ticket still writes the guarded auth ticket', function () {
     $user = User::factory()->create();
 
-    expect(app(PlayerRepository::class)->issueSso($user))->not->toBeEmpty();
+    $ticket = app(PlayerRepository::class)->issueSso($user);
+
+    // Assert it persisted, not merely that a string came back - a guarded
+    // column turns the write into a silent no-op.
+    expect($ticket)->not->toBeEmpty()
+        ->and($user->fresh()->auth_ticket)->toBe($ticket);
 });
 
 test('online friends come back most recently seen first', function () {
@@ -55,7 +60,7 @@ test('online friends come back most recently seen first', function () {
             'user_one_id' => $user->id,
             'user_two_id' => $friend->id,
             'relation' => 0,
-            'friends_since' => now(),
+            'friends_since' => time(),
             'category' => 0,
         ]);
     }
