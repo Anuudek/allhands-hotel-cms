@@ -80,3 +80,33 @@ test('referral rewards cannot be claimed with a get request', function () {
     expect($user->referrals->fresh()->referrals_total)->toBe(3)
         ->and($user->claimedReferralLog()->count())->toBe(0);
 });
+
+test('an online player cannot claim while rcon is unreachable', function () {
+    // The player holds their balance in game and writes it back on
+    // disconnect, so a database grant made underneath them is discarded. The
+    // referrals must survive so the reward stays claimable.
+    $user = User::factory()->create(['online' => '1']);
+    $user->referrals()->create(['referrals_total' => 4]);
+
+    $this->actingAs($user)
+        ->post(route('claim.referral-reward'))
+        ->assertSessionHasErrors('message');
+
+    expect($user->referrals->fresh()->referrals_total)->toBe(4)
+        ->and(app(CurrencyRepository::class)->balance($user->fresh(), CurrencyTypes::Diamonds))->toBe(0)
+        ->and($user->claimedReferralLog()->count())->toBe(0);
+});
+
+test('an online player claims through rcon when it is connected', function () {
+    $this->rcon->connected();
+
+    $user = User::factory()->create(['online' => '1']);
+    $user->referrals()->create(['referrals_total' => 4]);
+
+    $this->actingAs($user)
+        ->post(route('claim.referral-reward'))
+        ->assertSessionHas('success');
+
+    expect($user->referrals->fresh()->referrals_total)->toBe(1)
+        ->and($user->claimedReferralLog()->count())->toBe(1);
+});

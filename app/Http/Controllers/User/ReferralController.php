@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Actions\User\ClaimReferralReward;
+use App\Exceptions\CurrencyGrantException;
 use App\Http\Controllers\Controller;
 use App\Support\AuthenticatedUser;
 use Illuminate\Http\RedirectResponse;
@@ -12,10 +13,17 @@ class ReferralController extends Controller
 {
     public function __invoke(Request $request, ClaimReferralReward $claim): RedirectResponse
     {
-        $claimed = $claim->execute(
-            AuthenticatedUser::from($request),
-            $request->ip() ?: 'unknown',
-        );
+        try {
+            $claimed = $claim->execute(
+                AuthenticatedUser::from($request),
+                $request->ip() ?: 'unknown',
+            );
+        } catch (CurrencyGrantException) {
+            // The referrals are untouched, so the reward stays claimable.
+            return redirect()->back()->withErrors([
+                'message' => __('You must be offline to claim your reward'),
+            ]);
+        }
 
         if (! $claimed) {
             return redirect()->back()->withErrors([

@@ -43,3 +43,24 @@ test('an online ada package purchase fails safely without rcon', function () {
         ->toBe($startingCredits)
         ->and(WebsiteShopPurchase::where('user_id', $user->id)->count())->toBe(0);
 });
+
+test('an online ada player cannot claim a referral reward', function () {
+    installHotel();
+    setSetting('referrals_needed', '3');
+    setSetting('referral_reward_amount', '10');
+
+    // Ada has no RCON bridge, so an online player is always in the position
+    // where a database grant would be overwritten on disconnect.
+    $user = User::factory()->create();
+    $user->referrals()->create(['referrals_total' => 4]);
+    DB::table('player_data')->where('player_id', $user->id)->update(['is_online' => true]);
+    $before = (int) DB::table('player_data')->where('player_id', $user->id)->value('seasonal_balance');
+
+    $this->actingAs($user->refresh())
+        ->post(route('claim.referral-reward'))
+        ->assertSessionHasErrors('message');
+
+    // The referrals survive, so the reward stays claimable once they log out.
+    expect($user->referrals->fresh()->referrals_total)->toBe(4)
+        ->and((int) DB::table('player_data')->where('player_id', $user->id)->value('seasonal_balance'))->toBe($before);
+});
