@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Hotel\AdaPlayerMessages;
 
 use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Filament\Resources\Hotel\AdaPlayerMessages\Pages\ManageAdaPlayerMessages;
-use App\Filament\Traits\TranslatesNavigationGroup;
+use App\Filament\Concerns\TranslatesNavigationGroup;
 use App\Models\Ada\AdaPlayerMessage;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Textarea;

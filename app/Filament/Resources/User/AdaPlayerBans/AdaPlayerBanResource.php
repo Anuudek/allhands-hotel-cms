@@ -4,7 +4,7 @@ namespace App\Filament\Resources\User\AdaPlayerBans;
 
 use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Filament\Resources\User\AdaPlayerBans\Pages\ManageAdaPlayerBans;
-use App\Filament\Traits\TranslatesNavigationGroup;
+use App\Filament\Concerns\TranslatesNavigationGroup;
 use App\Models\Ada\AdaPlayerBan;
 use App\Models\User;
 use App\Support\AuthenticatedUser;
