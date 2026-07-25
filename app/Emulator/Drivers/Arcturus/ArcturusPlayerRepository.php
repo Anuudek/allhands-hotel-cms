@@ -53,7 +53,10 @@ class ArcturusPlayerRepository implements PlayerRepository
                 MessengerFriendship::query()->where('user_one_id', $user->id)->select('user_two_id'),
             ),
         )
-            ->inRandomOrder()
+            // Ordered by recency rather than at random: inRandomOrder()
+            // makes the server sort the whole matching set on every
+            // profile view, and the widget only shows a handful.
+            ->orderByDesc('users.last_online')
             ->limit($limit)
             ->get(['users.id', 'users.username', 'users.look', 'users.motto', 'users.last_online']);
     }
