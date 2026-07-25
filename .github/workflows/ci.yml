@@ -163,7 +163,9 @@ jobs:
       # Ada and Arcturus own overlapping table names, so each suite runs
       # against a database of its own. See tests/AdaTestCase.php.
       - name: Create the Ada test database
-        run: mariadb -h 127.0.0.1 -uroot -ppassword -e "CREATE DATABASE IF NOT EXISTS testing_ada"
+        # Created through PDO because the runner has no MariaDB client, and
+        # pdo_mysql is already installed for the suite itself.
+        run: php -r '$pdo = new PDO("mysql:host=127.0.0.1;port=3306", "root", "password"); $pdo->exec("CREATE DATABASE IF NOT EXISTS testing_ada");' 
 
       - name: Run tests
         run: vendor/bin/pest

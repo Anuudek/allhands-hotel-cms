@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,6 +21,12 @@ use Illuminate\Support\Facades\DB;
  */
 class AdaBadgeRepository implements BadgeRepository
 {
+    /** How long a grant may hold its lock before it is considered abandoned. */
+    private const LOCK_SECONDS = 10;
+
+    /** How long a competing grant waits for its turn before giving up. */
+    private const LOCK_WAIT_SECONDS = 5;
+
     /** @return HasMany<AdaPlayerBadge, User> */
     public function relation(User $user): HasMany
     {
@@ -33,24 +40,36 @@ class AdaBadgeRepository implements BadgeRepository
 
     public function grant(User $user, string $badge): void
     {
-        DB::transaction(function () use ($user, $badge): void {
-            $badgeId = $this->badgeId($badge);
+        // Resolving the definition and claiming ownership are both
+        // read-then-insert, and Ada constrains neither table, so a transaction
+        // alone lets two concurrent grants both see absence and both write.
+        // Serialising on the pair keeps Atom's own grants single-file.
+        Cache::lock($this->lockFor($user, $badge), self::LOCK_SECONDS)->block(
+            self::LOCK_WAIT_SECONDS,
+            fn () => DB::transaction(function () use ($user, $badge): void {
+                $badgeId = $this->badgeId($badge);
 
-            $owned = DB::table('player_badges')
-                ->where('player_id', $user->id)
-                ->where('badge_id', $badgeId)
-                ->exists();
+                $owned = DB::table('player_badges')
+                    ->where('player_id', $user->id)
+                    ->where('badge_id', $badgeId)
+                    ->exists();
 
-            if ($owned) {
-                return;
-            }
+                if ($owned) {
+                    return;
+                }
 
-            DB::table('player_badges')->insert([
-                'player_id' => $user->id,
-                'badge_id' => $badgeId,
-                'slot' => 0,
-            ]);
-        });
+                DB::table('player_badges')->insert([
+                    'player_id' => $user->id,
+                    'badge_id' => $badgeId,
+                    'slot' => 0,
+                ]);
+            }),
+        );
+    }
+
+    private function lockFor(User $user, string $badge): string
+    {
+        return sprintf('ada-badge-grant:%d:%s', $user->id, sha1($badge));
     }
 
     public function revoke(User $user, string $badge): void

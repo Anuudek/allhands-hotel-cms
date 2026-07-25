@@ -464,6 +464,42 @@ test('ada validates player fields against EF column lengths', function () {
         ->assertSessionHasErrors(['mail', 'motto']);
 });
 
+test('an offline ada user can change their motto without rcon', function () {
+    // Ada has no RCON bridge, so a driver that told the emulator about every
+    // motto change would fail every one of them. The database write is the
+    // whole change here.
+    $user = User::factory()->create(['online' => false, 'motto' => 'Before']);
+
+    $this->actingAs($user)
+        ->put(route('settings.account.update'), ['mail' => $user->mail, 'motto' => 'After'])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('settings.account.show'));
+
+    expect($user->fresh()->motto)->toBe('After')
+        ->and(DB::table('player_avatar_data')->where('player_id', $user->id)->value('motto'))->toBe('After');
+});
+
+test('an ada email and motto change apply together or not at all', function () {
+    $user = User::factory()->create(['online' => false, 'motto' => 'Before']);
+    $original = $user->mail;
+
+    $this->actingAs($user)
+        ->put(route('settings.account.update'), [
+            'mail' => 'changed@example.com',
+            'motto' => 'After',
+            'current_password' => 'password',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('settings.account.show'));
+
+    $user->refresh();
+
+    expect($user->mail)->toBe('changed@example.com')
+        ->and($user->motto)->toBe('After')
+        ->and($original)->not->toBe('changed@example.com')
+        ->and(DB::table('players')->where('id', $user->id)->value('email'))->toBe('changed@example.com');
+});
+
 test('ada issues EF-compatible expiring one-time SSO tokens', function () {
     $user = User::factory()->create();
 

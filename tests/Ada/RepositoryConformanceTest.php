@@ -21,6 +21,8 @@ use App\Services\HousekeepingPermissionsService;
 use App\Services\PermissionsService;
 use Database\Seeders\HousekeepingPermissionSeeder;
 use Database\Seeders\WebsitePermissionSeeder;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -299,4 +301,49 @@ test('the ada installer waits on a database ada has not finished building', func
     } finally {
         Schema::rename('player_navigator_settings_hidden', 'player_navigator_settings');
     }
+});
+
+test('a grant held up by a competing one still leaves a single row', function () {
+    // The race is read-then-insert with no constraint behind it, so a
+    // sequential duplicate cannot reproduce it. Holding the lock and writing
+    // the row underneath stands in for the competing process: the grant has
+    // to notice the row appeared while it was waiting.
+    $badges = app(BadgeRepository::class);
+    $user = User::factory()->create();
+    $code = 'ACH_Race';
+
+    $lock = Cache::lock("ada-badge-grant:{$user->id}:" . sha1($code), 10);
+
+    expect($lock->get())->toBeTrue();
+
+    $badgeId = DB::table('badges')->insertGetId(['code' => $code]);
+    DB::table('player_badges')->insert(['player_id' => $user->id, 'badge_id' => $badgeId, 'slot' => 0]);
+
+    $lock->release();
+
+    $badges->grant($user, $code);
+
+    expect($badges->codes($user))->toBe([$code])
+        ->and(DB::table('player_badges')->where('player_id', $user->id)->count())->toBe(1);
+});
+
+test('a grant that cannot take the lock does not write a duplicate', function () {
+    $badges = app(BadgeRepository::class);
+    $user = User::factory()->create();
+    $code = 'ACH_Contended';
+
+    $badges->grant($user, $code);
+
+    // A competitor holding the lock past the wait window must make the grant
+    // fail loudly rather than fall through and insert a second row.
+    $lock = Cache::lock("ada-badge-grant:{$user->id}:" . sha1($code), 30);
+    expect($lock->get())->toBeTrue();
+
+    try {
+        expect(fn () => $badges->grant($user, $code))->toThrow(LockTimeoutException::class);
+    } finally {
+        $lock->release();
+    }
+
+    expect(DB::table('player_badges')->where('player_id', $user->id)->count())->toBe(1);
 });
