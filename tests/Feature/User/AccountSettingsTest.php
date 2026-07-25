@@ -11,7 +11,7 @@ beforeEach(function () {
 function userWithNameChangeFlag(string $flag): User
 {
     $user = User::factory()->create(['online' => '0']);
-    $user->settings()->updateOrCreate([], ['allow_name_change' => $flag]);
+    $user->settings()->updateOrCreate([], ['can_change_name' => $flag]);
 
     return $user->refresh();
 }
@@ -77,7 +77,7 @@ test('the settings page only offers a rename when the emulator granted one', fun
         ->assertOk()
         ->assertSee('name="username"', false);
 
-    $user->settings->update(['allow_name_change' => '0']);
+    $user->settings->update(['can_change_name' => '0']);
 
     $this->actingAs($user)
         ->get(route('settings.account.show'))
@@ -100,7 +100,7 @@ test('a granted rename is persisted and consumes the single-use flag', function 
     $user->refresh();
 
     expect($user->username)->toBe('FreshName')
-        ->and($user->settings->allow_name_change)->toBe('0');
+        ->and($user->settings->can_change_name)->toBe('0');
 });
 
 test('a rename is rejected server-side without the emulator flag', function () {
@@ -132,7 +132,7 @@ test('a rename still enforces username uniqueness', function () {
         ->assertSessionHasErrors('username');
 
     expect($user->refresh()->username)->toBe($originalName)
-        ->and($user->settings->allow_name_change)->toBe('1');
+        ->and($user->settings->can_change_name)->toBe('1');
 });
 
 test('a rename still enforces the website wordfilter', function () {
@@ -151,7 +151,7 @@ test('a rename still enforces the website wordfilter', function () {
         ->assertSessionHasErrors('username');
 
     expect($user->refresh()->username)->toBe($originalName)
-        ->and($user->settings->allow_name_change)->toBe('1');
+        ->and($user->settings->can_change_name)->toBe('1');
 });
 
 test('an online user cannot change settings while rcon is down', function () {
