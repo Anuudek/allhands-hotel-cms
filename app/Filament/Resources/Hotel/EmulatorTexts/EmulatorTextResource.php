@@ -18,13 +18,12 @@ use Filament\Tables\Table;
 class EmulatorTextResource extends Resource
 {
     use RequiresEmulatorDriver;
+    use TranslatableResource;
 
     protected static function requiredEmulatorDriver(): string
     {
         return 'arcturus';
     }
-
-    use TranslatableResource;
 
     protected static ?string $model = EmulatorText::class;
 

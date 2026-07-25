@@ -19,13 +19,12 @@ use Illuminate\Database\Eloquent\Builder;
 class ChatlogPrivateResource extends Resource
 {
     use RequiresEmulatorDriver;
+    use TranslatableResource;
 
     protected static function requiredEmulatorDriver(): string
     {
         return 'arcturus';
     }
-
-    use TranslatableResource;
 
     protected static ?string $model = ChatlogPrivate::class;
 
