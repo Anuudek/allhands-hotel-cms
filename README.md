@@ -113,33 +113,6 @@ php artisan atom:install --theme=dusk               # Pick the theme without bei
 php artisan atom:install --skip-build               # Skip building theme assets (npm run build:atom|dusk)
 ```
 
-### What differs between the emulators
-
-A hotel runs one emulator and stays on it. Currencies, badges, bans, furniture,
-rooms, ranks, friends and player statistics all go through the driver, so the
-site behaves the same either way. What Ada has no schema for is hidden rather
-than shown empty:
-
-| Surface | Arcturus | Ada |
-| ------- | -------- | --- |
-| RCON (live changes to online players) | Yes | No - changes land in the database and reach the player on reconnect |
-| Camera photos | Yes | Hidden; Ada stores no photos |
-| Hours-online ranking | Yes | Hidden; Ada does not record session duration |
-| Word filter and command logs | Yes | Not stored by Ada |
-| Per-player name-change grant | Yes | Not stored by Ada |
-| Housekeeping for catalog, chatlogs, bans, ranks and emulator settings | Arcturus resources | Ada resources over its own tables |
-
-The test suite mirrors this split. `tests/Feature` runs against the Arcturus
-schema and `tests/Ada` against a database of its own, seeded from a real
-EF-migrated Ada database (`database/ada/schema.sql`). Create it once with
-`CREATE DATABASE testing_ada;` - the two emulators own overlapping table names,
-so neither can be tested honestly inside the other's database.
-
-On Ada, Atom keeps a compatibility `users` row so its own foreign keys stay
-valid. The CMS writes flow out to Ada's tables, and every user query is
-refreshed from Ada before it is used, so a player's live look, motto, balances
-and presence are always Ada's values rather than the mirror's.
-
 Prefer to do it step by step? Follow the manual guides below.
 
 ### Windows Setup
