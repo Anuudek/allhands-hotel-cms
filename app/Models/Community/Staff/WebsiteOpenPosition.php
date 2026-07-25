@@ -2,8 +2,9 @@
 
 namespace App\Models\Community\Staff;
 
+use App\Emulator\Contracts\RankRepository;
+use App\Emulator\Models\Rank;
 use App\Models\Community\Teams\WebsiteTeam;
-use App\Models\Game\Permission;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,7 +26,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, WebsiteStaffApplications> $applications
  * @property-read int|null $applications_count
- * @property-read Permission|null $permission
+ * @property-read Rank|null $permission
  * @property-read WebsiteTeam|null $team
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebsiteOpenPosition canApply()
@@ -78,10 +79,13 @@ class WebsiteOpenPosition extends Model
         });
     }
 
-    /** @return BelongsTo<Permission, $this> */
+    /** @return BelongsTo<Rank, $this> */
     public function permission(): BelongsTo
     {
-        return $this->belongsTo(Permission::class, 'permission_id');
+        return $this->belongsTo(
+            app(RankRepository::class)->model(),
+            'permission_id',
+        );
     }
 
     /** @return BelongsTo<WebsiteTeam, $this> */

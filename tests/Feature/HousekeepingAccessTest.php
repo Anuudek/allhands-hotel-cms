@@ -5,17 +5,9 @@ use App\Models\User;
 use App\Models\User\Ban;
 use App\Models\WebsiteHousekeepingPermission;
 use App\Policies\BanPolicy;
+use App\Policies\HousekeepingPolicy;
 use App\Policies\WebsiteHelpCenterTicketPolicy;
 use Illuminate\Support\Facades\Gate;
-
-function grantHousekeepingPermission(string $permission, int $minRank): void
-{
-    WebsiteHousekeepingPermission::query()->create([
-        'permission' => $permission,
-        'min_rank' => $minRank,
-        'description' => "Testing {$permission}",
-    ]);
-}
 
 test('guests are redirected away from the housekeeping panel', function () {
     installHotel();
@@ -149,4 +141,35 @@ test('the user editor only resolves records below the actor rank', function () {
     $this->actingAs($actor)
         ->get("/housekeeping/user-management/users/{$higher->id}/edit")
         ->assertNotFound();
+});
+
+test('every housekeeping policy names a permission the seeder ships', function () {
+    // HousekeepingPermissionsService denies an unknown permission outright, so
+    // a policy naming one nobody seeded locks the resource for every rank -
+    // including the owner - with no error to explain why.
+    $seeded = collect(
+        preg_split('/\R/', (string) file_get_contents(database_path('seeders/HousekeepingPermissionSeeder.php'))) ?: [],
+    )
+        ->map(fn (string $line) => preg_match("/'permission' => '([a-z_]+)'/", $line, $matches) === 1 ? $matches[1] : null)
+        ->filter()
+        ->values()
+        ->all();
+
+    expect($seeded)->not->toBeEmpty();
+
+    $policies = collect(glob(app_path('Policies/*Policy.php')) ?: [])
+        ->map(fn (string $path) => 'App\\Policies\\' . basename($path, '.php'))
+        ->filter(fn (string $policy) => is_subclass_of($policy, HousekeepingPolicy::class));
+
+    expect($policies)->not->toBeEmpty();
+
+    foreach ($policies as $policy) {
+        $permission = new ReflectionMethod($policy, 'permission');
+        $permission->setAccessible(true);
+
+        $required = $permission->invoke(app($policy));
+
+        expect(in_array($required, $seeded, true))
+            ->toBeTrue("{$policy} requires the unseeded housekeeping permission [{$required}]");
+    }
 });

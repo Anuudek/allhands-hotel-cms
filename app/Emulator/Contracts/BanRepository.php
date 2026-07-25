@@ -7,8 +7,7 @@ use App\Models\User;
 
 /**
  * Answers whether a visitor or account is banned on the emulator database.
- * Arcturus stores bans typed per row (account/ip/machine/super); Plus keys
- * them by bantype with the target in a value column.
+ * Arcturus stores bans in one typed table; Ada separates player and IP bans.
  */
 interface BanRepository
 {

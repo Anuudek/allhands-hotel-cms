@@ -139,7 +139,11 @@ Route::middleware(['maintenance', 'check.ban', 'force.staff.2fa'])->group(functi
 
         // Community routes
         Route::prefix('community')->group(function () {
-            Route::get('/photos', PhotosController::class)->name('photos.index');
+            // Reads the emulator's camera storage, so only available on drivers
+            // that persist photos.
+            Route::get('/photos', PhotosController::class)
+                ->middleware('emulator.feature:camera-photos')
+                ->name('photos.index');
 
             // Allowed to be visited without being logged in
             Route::withoutMiddleware('auth')->group(function () {

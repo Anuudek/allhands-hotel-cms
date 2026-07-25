@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Community;
 
+use App\Emulator\Contracts\FurnitureRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RareSearchFormRequest;
 use App\Models\Community\RareValue\WebsiteRareValue;
 use App\Models\Community\RareValue\WebsiteRareValueCategory;
-use App\Models\Game\Furniture\Item;
 use App\Models\User;
 use App\Services\Community\RareValues\RareValueCategoriesService;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +15,10 @@ use Illuminate\View\View;
 
 class WebsiteRareValuesController extends Controller
 {
-    public function __construct(private readonly RareValueCategoriesService $valueCategoriesService) {}
+    public function __construct(
+        private readonly RareValueCategoriesService $valueCategoriesService,
+        private readonly FurnitureRepository $furniture,
+    ) {}
 
     public function index(): View
     {
@@ -77,12 +80,8 @@ class WebsiteRareValuesController extends Controller
     private function itemsPerUser(WebsiteRareValue $value): array
     {
         $resolve = function () use ($value): array {
-            $counts = Item::query()
-                ->where('item_id', $value->item_id)
-                ->groupBy('user_id')
-                ->selectRaw('user_id, COUNT(*) as item_count')
-                ->orderByDesc('item_count')
-                ->limit(100)
+            $counts = $this->furniture
+                ->holdings((int) $value->item_id)
                 ->pluck('item_count', 'user_id');
 
             $users = User::whereKey($counts->keys())->get(['id', 'username', 'look'])->keyBy('id');

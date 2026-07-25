@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Atom\Permissions;
 
+use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Filament\Resources\Atom\Permissions\Pages\CreatePermission;
 use App\Filament\Resources\Atom\Permissions\Pages\EditPermission;
 use App\Filament\Resources\Atom\Permissions\Pages\ListPermissions;
@@ -31,6 +32,7 @@ use Str;
 
 class PermissionResource extends Resource
 {
+    use RequiresEmulatorDriver;
     use TranslatableResource;
 
     protected static ?string $model = Permission::class;
@@ -46,6 +48,11 @@ class PermissionResource extends Resource
     protected static ?string $recordTitleAttribute = 'rank_name';
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
+
+    protected static function requiredEmulatorDriver(): string
+    {
+        return 'arcturus';
+    }
 
     /**
      * @param  array<string, mixed>  $data

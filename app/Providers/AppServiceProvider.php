@@ -3,15 +3,12 @@
 namespace App\Providers;
 
 use App\Contracts\PaypalGateway;
-use App\Contracts\Rcon;
 use App\Models\WebsiteDrawBadge;
 use App\Observers\WebsiteDrawBadgeObserver;
-use App\Services\AfterCommitRcon;
 use App\Services\HousekeepingPermissionsService;
 use App\Services\InstallationService;
 use App\Services\Payments\SrmklivePaypalGateway;
 use App\Services\PermissionsService;
-use App\Services\RconService;
 use App\Services\SettingsService;
 use App\Services\ViteService;
 use Filament\Tables\Table;
@@ -56,13 +53,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(
             HousekeepingPermissionsService::class,
             fn () => new HousekeepingPermissionsService,
-        );
-
-        // Wrapped so RCON sends inside a DB transaction only fire once it
-        // commits - a rolled-back purchase never grants items in the emulator.
-        $this->app->singleton(
-            Rcon::class,
-            fn () => new AfterCommitRcon(new RconService),
         );
 
         // Resolve the PayPal client pre-authenticated so consumers can inject

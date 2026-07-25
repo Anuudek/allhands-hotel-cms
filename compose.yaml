@@ -24,6 +24,7 @@ services:
             - sail
         depends_on:
             - mariadb
+            - mariadb-ada
             - redis
             - minio
             - mailpit
@@ -40,6 +41,28 @@ services:
         volumes:
             - 'sail-mariadb:/var/lib/mysql'
             - './vendor/laravel/sail/database/mariadb/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - healthcheck.sh
+                - '--connect'
+                - '--innodb_initialized'
+            retries: 3
+            timeout: 5s
+    mariadb-ada:
+        image: 'mariadb:11.8.8-noble@sha256:efb4959ef2c835cd735dbc388eb9ad6aab0c78dd64febcd51bc17481111890c4'
+        ports:
+            - '127.0.0.1:${FORWARD_ADA_DB_PORT:-3308}:3306'
+        environment:
+            MYSQL_ROOT_PASSWORD: '${ADA_DB_PASSWORD:-password}'
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_DATABASE: '${ADA_DB_DATABASE:-atomcms_ada}'
+            MYSQL_USER: '${ADA_DB_USERNAME:-atomcms}'
+            MYSQL_PASSWORD: '${ADA_DB_PASSWORD:-password}'
+        volumes:
+            - 'sail-mariadb-ada:/var/lib/mysql'
         networks:
             - sail
         healthcheck:
@@ -98,6 +121,8 @@ networks:
         driver: bridge
 volumes:
     sail-mariadb:
+        driver: local
+    sail-mariadb-ada:
         driver: local
     sail-redis:
         driver: local

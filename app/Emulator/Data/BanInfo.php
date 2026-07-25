@@ -3,13 +3,17 @@
 namespace App\Emulator\Data;
 
 /**
- * An active ban, normalised across emulators. The snake_case properties match
- * what the banned page already renders, whichever driver produced it.
+ * An active ban, normalised across emulators. The snake_case property names
+ * match what the banned page already renders, whichever driver produced it.
+ *
+ * A null expiry means the ban never lifts. Ada stores that as NULL; Arcturus
+ * has no such notion and always carries a timestamp.
  */
-final class BanInfo
+final readonly class BanInfo
 {
     public function __construct(
-        public readonly string $ban_reason,
-        public readonly int $ban_expire,
+        public string $type,
+        public string $ban_reason,
+        public ?int $ban_expire,
     ) {}
 }

@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class BanResource extends Resource
 {
-    // Bound to the Arcturus bans schema; PlusBanResource covers Plus.
+    // Bound to the Arcturus bans schema; Ada has split player/IP resources.
     use RequiresEmulatorDriver;
     use TranslatableResource;
 

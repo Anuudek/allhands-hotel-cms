@@ -2,8 +2,9 @@
 
 namespace App\Models\Community\Staff;
 
+use App\Emulator\Contracts\RankRepository;
+use App\Emulator\Models\Rank;
 use App\Models\Community\Teams\WebsiteTeam;
-use App\Models\Game\Permission;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,7 +25,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $approver
- * @property-read Permission|null $rank
+ * @property-read Rank|null $rank
  * @property-read User|null $rejector
  * @property-read WebsiteTeam|null $team
  * @property-read User $user
@@ -87,10 +88,13 @@ class WebsiteStaffApplications extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /** @return BelongsTo<Permission, $this> */
+    /** @return BelongsTo<Rank, $this> */
     public function rank(): BelongsTo
     {
-        return $this->belongsTo(Permission::class, 'rank_id');
+        return $this->belongsTo(
+            app(RankRepository::class)->model(),
+            'rank_id',
+        );
     }
 
     /** @return BelongsTo<WebsiteTeam, $this> */

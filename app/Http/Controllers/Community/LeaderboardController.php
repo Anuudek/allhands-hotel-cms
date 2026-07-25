@@ -25,7 +25,11 @@ class LeaderboardController extends Controller
             'credits' => $currencies->topBy(CurrencyTypes::Credits, self::SIZE, $staffIds),
             'duckets' => $currencies->topBy(CurrencyTypes::Duckets, self::SIZE, $staffIds),
             'diamonds' => $currencies->topBy(CurrencyTypes::Diamonds, self::SIZE, $staffIds),
-            'mostOnline' => $stats->topBy(Stat::OnlineTime, self::SIZE, $staffIds),
+            // A statistic the emulator does not persist is hidden outright
+            // rather than rendered as an empty ranking.
+            'mostOnline' => $stats->supports(Stat::OnlineTime)
+                ? $stats->topBy(Stat::OnlineTime, self::SIZE, $staffIds)
+                : null,
             'respectsReceived' => $stats->topBy(Stat::RespectsReceived, self::SIZE, $staffIds),
             'achievementScores' => $stats->topBy(Stat::AchievementScore, self::SIZE, $staffIds),
         ]);

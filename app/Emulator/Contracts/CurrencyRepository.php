@@ -26,6 +26,9 @@ interface CurrencyRepository
 
     /**
      * Atomically remove the amount, returning false if the balance is short.
+     *
+     * Deducting nothing always succeeds: a free purchase is affordable at any
+     * balance, including one the player has no row for yet.
      */
     public function deduct(User $user, CurrencyTypes $currency, int $amount): bool;
 

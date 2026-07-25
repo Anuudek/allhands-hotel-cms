@@ -2,8 +2,7 @@
 
 namespace App\Filament\Resources\Hotel\CatalogEditors;
 
-use App\Emulator\Data\Feature;
-use App\Filament\Concerns\RequiresEmulatorFeature;
+use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Models\Game\Furniture\CatalogPage;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -13,11 +12,11 @@ use Filament\Tables\Table;
 
 class CatalogEditorResource extends Resource
 {
-    use RequiresEmulatorFeature;
+    use RequiresEmulatorDriver;
 
-    protected static function requiredEmulatorFeature(): Feature
+    protected static function requiredEmulatorDriver(): string
     {
-        return Feature::CatalogManagement;
+        return 'arcturus';
     }
 
     protected static ?string $model = CatalogPage::class;

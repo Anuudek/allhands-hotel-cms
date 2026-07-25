@@ -2,17 +2,14 @@
 
 use App\Emulator\Contracts\CurrencyRepository;
 use App\Emulator\Drivers\Arcturus\ArcturusCurrencyRepository;
-use App\Emulator\Drivers\Plus\PlusCurrencyRepository;
 use App\Enums\CurrencyTypes;
 use App\Models\User;
 
 /**
- * Conformance tests every currency driver must pass against its own schema.
- * The testing database carries both emulators' tables (see TestCase).
+ * Arcturus half of the currency conformance suite; Ada's is in tests/Ada.
  */
 dataset('currency drivers', [
     'arcturus' => [fn (): CurrencyRepository => new ArcturusCurrencyRepository],
-    'plus' => [fn (): CurrencyRepository => new PlusCurrencyRepository],
 ]);
 
 beforeEach(function () {
@@ -61,6 +58,15 @@ test('deduct is atomic and refuses to overdraw', function (CurrencyRepository $c
         ->and($currencies->balance($user->fresh(), CurrencyTypes::Duckets))->toBe(30)
         ->and($currencies->deduct($user->fresh(), CurrencyTypes::Duckets, 20))->toBeTrue()
         ->and($currencies->balance($user->fresh(), CurrencyTypes::Duckets))->toBe(10);
+})->with('currency drivers');
+
+test('deducting nothing succeeds even on an empty balance', function (CurrencyRepository $currencies) {
+    // Free shop items and free drawn badges deduct zero. A zero decrement
+    // changes no rows, so a naive affected-rows check reads as "cannot afford".
+    $user = User::factory()->create();
+
+    expect($currencies->deduct($user, CurrencyTypes::Duckets, 0))->toBeTrue()
+        ->and($currencies->balance($user->fresh(), CurrencyTypes::Duckets))->toBe(0);
 })->with('currency drivers');
 
 test('the currency leaderboard ranks richer players first', function (CurrencyRepository $currencies) {

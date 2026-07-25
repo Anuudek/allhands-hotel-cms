@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Hotel\StaffApplications;
 
+use App\Emulator\Contracts\RankRepository;
 use App\Filament\Resources\Hotel\StaffApplications\Pages\ListStaffApplications;
 use App\Models\Community\Staff\WebsiteStaffApplications;
 use Filament\Actions\Action;
@@ -39,7 +40,7 @@ class StaffApplicationResource extends Resource
 
             Select::make('rank_id')
                 ->label('Rank')
-                ->relationship('rank', 'rank_name')
+                ->relationship('rank', app(RankRepository::class)->displayNameColumn())
                 ->searchable()
                 ->nullable(),
 
@@ -70,8 +71,10 @@ class StaffApplicationResource extends Resource
                         ? ($record->team->rank_name ?? '-')
                         : ($record->rank->rank_name ?? '-'))
                     ->searchable(query: function ($query, string $search) {
+                        $rankName = app(RankRepository::class)->displayNameColumn();
+
                         $query
-                            ->orWhereHas('rank', fn ($q) => $q->where('rank_name', 'like', "%{$search}%"))
+                            ->orWhereHas('rank', fn ($q) => $q->where($rankName, 'like', "%{$search}%"))
                             ->orWhereHas('team', fn ($q) => $q->where('rank_name', 'like', "%{$search}%"));
                     })
                     ->sortable(),

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Hotel\OpenPositions;
 
+use App\Emulator\Contracts\RankRepository;
 use App\Filament\Resources\Hotel\OpenPositions\Pages\CreateOpenPosition;
 use App\Filament\Resources\Hotel\OpenPositions\Pages\EditOpenPosition;
 use App\Filament\Resources\Hotel\OpenPositions\Pages\ListOpenPositions;
@@ -47,7 +48,7 @@ class OpenPositionResource extends Resource
 
                 Select::make('permission_id')
                     ->label('Rank')
-                    ->relationship('permission', 'rank_name')
+                    ->relationship('permission', app(RankRepository::class)->displayNameColumn())
                     ->searchable()
                     ->preload()
                     ->placeholder('Select a rank')

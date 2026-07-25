@@ -1,5 +1,7 @@
 <?php
 
+use App\Emulator\Data\SchemaFeature;
+use App\Emulator\Emulator;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,6 +13,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Emulator::supportsSchema(SchemaFeature::ItemIdIndex)) {
+            return;
+        }
+
         Schema::table('items', function (Blueprint $table) {
             $table->index(['item_id'], 'items_item_id_index');
         });
@@ -21,6 +27,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (! Emulator::supportsSchema(SchemaFeature::ItemIdIndex)) {
+            return;
+        }
+
         Schema::table('items', function (Blueprint $table) {
             $table->dropIndex('items_item_id_index');
         });

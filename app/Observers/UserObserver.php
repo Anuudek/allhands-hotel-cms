@@ -4,47 +4,38 @@ namespace App\Observers;
 
 use App\Actions\Home\CreateDefaultHome;
 use App\Emulator\Contracts\CurrencyRepository;
-use App\Emulator\Data\Feature;
-use App\Emulator\Emulator;
+use App\Emulator\Contracts\PlayerRepository;
+use App\Emulator\Contracts\PlayerSettingsRepository;
 use App\Enums\CurrencyTypes;
 use App\Models\User;
 
 class UserObserver
 {
-    public function __construct(private readonly CurrencyRepository $currencies) {}
+    public function __construct(
+        private readonly CurrencyRepository $currencies,
+        private readonly PlayerRepository $players,
+        private readonly PlayerSettingsRepository $settings,
+    ) {}
 
     public function created(User $user): void
     {
-        if (Emulator::supports(Feature::EmulatorUserSettings)) {
-            $this->createEmulatorSettings($user);
-        }
+        $this->players->created($user);
+
+        $this->settings->created($user);
 
         $this->grantStartingBalances($user);
 
         CreateDefaultHome::for($user);
     }
 
-    /**
-     * Arcturus-family emulators keep per-player settings and club
-     * subscriptions in their own tables; create those rows at registration.
-     */
-    private function createEmulatorSettings(User $user): void
+    public function updated(User $user): void
     {
-        $giveHc = (setting('give_hc_on_register') ?: '0') == '1';
+        $this->players->updated($user);
+    }
 
-        $user->settings()->create([
-            'last_hc_payday' => $giveHc ? now()->addYears(10)->unix() : 0,
-        ]);
-
-        if ($giveHc) {
-            $user->hcSubscription()->insert([
-                'user_id' => $user->id,
-                'subscription_type' => 'HABBO_CLUB',
-                'timestamp_start' => now()->unix(),
-                'duration' => (int) (setting('hc_on_register_duration') ?: 0),
-                'active' => 1,
-            ]);
-        }
+    public function deleted(User $user): void
+    {
+        $this->players->deleted($user);
     }
 
     /**

@@ -9,7 +9,6 @@ use App\Models\Game\Player\UserCurrency;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
 /**
@@ -24,7 +23,7 @@ class ArcturusCurrencyRepository implements CurrencyRepository
             return (int) $user->credits;
         }
 
-        return (int) ($user->currencies()->where('type', $currency->value)->value('amount') ?? 0);
+        return (int) ($this->currencies($user)->where('type', $currency->value)->value('amount') ?? 0);
     }
 
     public function give(User $user, CurrencyTypes $currency, int $amount): void
@@ -41,20 +40,29 @@ class ArcturusCurrencyRepository implements CurrencyRepository
 
         // users_currency has a composite key (user_id, type) that Eloquent
         // cannot address through a model, so adjust via the relation query.
-        $user->currencies()->firstOrCreate(['type' => $currency->value], ['amount' => 0]);
+        UserCurrency::query()->firstOrCreate(
+            ['user_id' => $user->id, 'type' => $currency->value],
+            ['amount' => 0],
+        );
 
-        $this->adjust($user->currencies()->where('type', $currency->value), 'amount', $amount);
+        $this->adjust($this->currencies($user)->where('type', $currency->value), 'amount', $amount);
     }
 
     public function deduct(User $user, CurrencyTypes $currency, int $amount): bool
     {
+        // A zero decrement changes no rows, which the driver would otherwise
+        // report as an unaffordable purchase.
+        if ($amount <= 0) {
+            return true;
+        }
+
         if ($currency === CurrencyTypes::Credits) {
             return User::whereKey($user->id)
                 ->where('credits', '>=', $amount)
                 ->decrement('credits', $amount) === 1;
         }
 
-        return $user->currencies()
+        return $this->currencies($user)
             ->where('type', $currency->value)
             ->where('amount', '>=', $amount)
             ->decrement('amount', $amount) === 1;
@@ -84,12 +92,18 @@ class ArcturusCurrencyRepository implements CurrencyRepository
     }
 
     /**
-     * @param  Builder<covariant Model>|HasMany<covariant Model, User>  $query
+     * @param  Builder<covariant Model>  $query
      */
-    private function adjust(Builder|HasMany $query, string $column, int $amount): void
+    private function adjust(Builder $query, string $column, int $amount): void
     {
         $amount > 0
             ? $query->increment($column, $amount)
             : $query->decrement($column, abs($amount));
+    }
+
+    /** @return Builder<UserCurrency> */
+    private function currencies(User $user): Builder
+    {
+        return UserCurrency::query()->where('user_id', $user->id);
     }
 }

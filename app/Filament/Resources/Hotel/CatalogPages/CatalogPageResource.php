@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Hotel\CatalogPages;
 
+use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Filament\Resources\Hotel\CatalogPages\Pages\CreateCatalogPage;
 use App\Filament\Resources\Hotel\CatalogPages\Pages\EditCatalogPage;
 use App\Filament\Resources\Hotel\CatalogPages\Pages\ListCatalogPages;
@@ -20,6 +21,8 @@ use Filament\Tables\Table;
 
 class CatalogPageResource extends Resource
 {
+    use RequiresEmulatorDriver;
+
     protected static ?string $model = CatalogPage::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -29,6 +32,11 @@ class CatalogPageResource extends Resource
     public static string $translateIdentifier = 'catalog-pages';
 
     protected static ?string $slug = 'hotel/catalog-pages';
+
+    protected static function requiredEmulatorDriver(): string
+    {
+        return 'arcturus';
+    }
 
     public static function form(Schema $schema): Schema
     {

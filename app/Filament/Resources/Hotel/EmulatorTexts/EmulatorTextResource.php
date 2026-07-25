@@ -2,8 +2,7 @@
 
 namespace App\Filament\Resources\Hotel\EmulatorTexts;
 
-use App\Emulator\Data\Feature;
-use App\Filament\Concerns\RequiresEmulatorFeature;
+use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Filament\Resources\Hotel\EmulatorTexts\Pages\ManageEmulatorTexts;
 use App\Filament\Traits\TranslatableResource;
 use App\Models\EmulatorText;
@@ -18,11 +17,11 @@ use Filament\Tables\Table;
 
 class EmulatorTextResource extends Resource
 {
-    use RequiresEmulatorFeature;
+    use RequiresEmulatorDriver;
 
-    protected static function requiredEmulatorFeature(): Feature
+    protected static function requiredEmulatorDriver(): string
     {
-        return Feature::EmulatorTexts;
+        return 'arcturus';
     }
 
     use TranslatableResource;

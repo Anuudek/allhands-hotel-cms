@@ -3,15 +3,14 @@
 use App\Emulator\Contracts\BadgeRepository;
 use App\Emulator\Data\OwnedBadge;
 use App\Emulator\Drivers\Arcturus\ArcturusBadgeRepository;
-use App\Emulator\Drivers\Plus\PlusBadgeRepository;
 use App\Models\User;
 
 /**
- * Conformance tests every badge driver must pass against its own schema.
+ * Arcturus half of the badge conformance suite. Ada owns overlapping table
+ * names so it cannot share this database; its half is in tests/Ada.
  */
 dataset('badge drivers', [
     'arcturus' => [fn (): BadgeRepository => new ArcturusBadgeRepository],
-    'plus' => [fn (): BadgeRepository => new PlusBadgeRepository],
 ]);
 
 beforeEach(function () {
@@ -56,4 +55,40 @@ test('badges paginate as normalised entries, newest first', function (BadgeRepos
     expect($page->total())->toBe(2)
         ->and($page->items()[0])->toBeInstanceOf(OwnedBadge::class)
         ->and($page->items()[0]->badge_code)->toBe('ACH_Newer');
+})->with('badge drivers');
+
+test('the active badge relation follows the selected driver schema', function (BadgeRepository $badges) {
+    $user = User::factory()->create();
+
+    $badges->grant($user, 'ACH_Relation');
+
+    expect($badges->relation($user)->count())->toBe(1)
+        ->and($user->emulatorBadges()->count())->toBe(1);
+})->with('badge drivers');
+
+test('granting a badge twice never duplicates the row', function (BadgeRepository $badges) {
+    // Neither emulator constrains this in the database, so the driver has to
+    // guarantee it. Two players owning the same badge must still be allowed.
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+
+    $badges->grant($user, 'ACH_Once');
+    $badges->grant($user, 'ACH_Once');
+    $badges->grant($other, 'ACH_Once');
+
+    expect($badges->codes($user))->toBe(['ACH_Once'])
+        ->and($badges->relation($user)->count())->toBe(1)
+        ->and($badges->relation($other)->count())->toBe(1);
+})->with('badge drivers');
+
+test('revoking a badge leaves other owners alone', function (BadgeRepository $badges) {
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+
+    $badges->grant($user, 'ACH_Shared');
+    $badges->grant($other, 'ACH_Shared');
+    $badges->revoke($user, 'ACH_Shared');
+
+    expect($badges->codes($user))->toBe([])
+        ->and($badges->codes($other))->toBe(['ACH_Shared']);
 })->with('badge drivers');

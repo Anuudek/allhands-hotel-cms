@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Contracts\Rcon;
+use App\Emulator\Contracts\PlayerSettingsRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AccountSettingsFormRequest;
 use App\Services\User\SessionService;
@@ -13,10 +14,13 @@ use Illuminate\View\View;
 
 class AccountSettingsController extends Controller
 {
-    public function edit(): View
+    public function edit(PlayerSettingsRepository $settings): View
     {
+        $user = AuthenticatedUser::current();
+
         return view('user.settings.account', [
-            'user' => AuthenticatedUser::current()->load('settings:allow_name_change'),
+            'user' => $user,
+            'canChangeName' => $settings->canChangeName($user),
         ]);
     }
 

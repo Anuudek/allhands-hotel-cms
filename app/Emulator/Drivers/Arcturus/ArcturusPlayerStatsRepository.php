@@ -13,6 +13,11 @@ use Illuminate\Support\Collection;
  */
 class ArcturusPlayerStatsRepository implements PlayerStatsRepository
 {
+    public function supports(Stat $stat): bool
+    {
+        return true;
+    }
+
     public function topBy(Stat $stat, int $limit, array $excludeUserIds = []): Collection
     {
         $column = $this->column($stat);

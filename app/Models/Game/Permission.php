@@ -2,11 +2,11 @@
 
 namespace App\Models\Game;
 
+use App\Emulator\Models\Rank;
 use App\Models\Community\Staff\WebsiteStaffApplications;
 use App\Models\Compositions\HasBadge;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -439,7 +439,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @mixin \Eloquent
  */
-class Permission extends Model implements HasBadge
+class Permission extends Rank implements HasBadge
 {
     protected $table = 'permissions';
 

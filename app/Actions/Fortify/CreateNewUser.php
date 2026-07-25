@@ -3,6 +3,7 @@
 namespace App\Actions\Fortify;
 
 use App\Actions\Fortify\Rules\PasswordValidationRules;
+use App\Emulator\Emulator;
 use App\Jobs\SendRegisteredUserWebhook;
 use App\Models\Miscellaneous\WebsiteBetaCode;
 use App\Models\User;
@@ -90,14 +91,21 @@ class CreateNewUser implements CreatesNewUsers
      */
     private function createUser(array $input, string $password, string $ip): User
     {
+        $motto = (string) (setting('start_motto') ?: 'Welcome to the hotel!');
+        $look = (string) (setting('start_look') ?: 'hr-100-61.hd-180-1.ch-210-66.lg-270-110.sh-305-62');
+
+        $constraints = Emulator::constraints();
+        $motto = mb_substr($motto, 0, $constraints->mottoLength);
+        $look = mb_substr($look, 0, $constraints->figureLength);
+
         $user = User::create([
             'username' => $input['username'],
             'mail' => $input['mail'],
             'password' => $password,
             'account_created' => time(),
             'last_login' => time(),
-            'motto' => setting('start_motto') ?: 'Welcome to the hotel!',
-            'look' => setting('start_look') ?: 'hr-100-61.hd-180-1.ch-210-66.lg-270-110.sh-305-62',
+            'motto' => $motto,
+            'look' => $look,
             'credits' => setting('start_credits') ?: 1000,
             'ip_register' => $ip,
             'ip_current' => $ip,
@@ -166,8 +174,8 @@ class CreateNewUser implements CreatesNewUsers
     private function validate(array $inputs): array
     {
         $rules = [
-            'username' => ['required', 'string', sprintf('regex:%s', setting('username_regex') ?: '/^[a-zA-Z0-9_.-]+$/'), 'max:25', Rule::unique('users'), new WebsiteWordfilterRule],
-            'mail' => ['required', 'string', 'email', 'max:255', Rule::unique('users')],
+            'username' => ['required', 'string', sprintf('regex:%s', setting('username_regex') ?: '/^[a-zA-Z0-9_.-]+$/'), 'max:' . Emulator::constraints()->usernameLength, Rule::unique('users'), new WebsiteWordfilterRule],
+            'mail' => ['required', 'string', 'email', 'max:' . Emulator::constraints()->emailLength, Rule::unique('users')],
             'password' => $this->passwordRules(),
             'beta_code' => [Rule::requiredIf(setting('requires_beta_code') === '1'), 'nullable', 'string', new BetaCodeRule],
             'referral_code' => ['nullable', 'string', 'max:255'],

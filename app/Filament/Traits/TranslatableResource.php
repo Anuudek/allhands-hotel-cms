@@ -2,30 +2,11 @@
 
 namespace App\Filament\Traits;
 
-use BackedEnum;
 use Str;
-use UnitEnum;
 
 trait TranslatableResource
 {
-    public static function getNavigationGroup(): ?string
-    {
-        $navigationGroup = static::$navigationGroup;
-
-        if ($navigationGroup === null) {
-            return null;
-        }
-
-        if ($navigationGroup instanceof BackedEnum) {
-            $navigationGroup = (string) $navigationGroup->value;
-        } elseif ($navigationGroup instanceof UnitEnum) {
-            $navigationGroup = $navigationGroup->name;
-        }
-
-        return __(
-            sprintf('filament::resources.navigations.%s', $navigationGroup),
-        );
-    }
+    use TranslatesNavigationGroup;
 
     public static function getPluralModelLabel(): string
     {

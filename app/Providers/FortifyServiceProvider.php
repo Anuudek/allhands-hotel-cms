@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
+use App\Emulator\Data\Feature;
+use App\Emulator\Emulator;
 use App\Models\Articles\WebsiteArticle;
 use App\Models\Miscellaneous\CameraWeb;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -68,7 +70,9 @@ class FortifyServiceProvider extends ServiceProvider
     {
         return [
             'articles' => WebsiteArticle::latest('id')->take($articles)->has('user')->with('user:id,username,look')->get(),
-            'photos' => CameraWeb::latest('id')->take($photos)->with('user:id,username,look')->get(),
+            'photos' => Emulator::supports(Feature::CameraPhotos)
+                ? CameraWeb::latest('id')->take($photos)->with('user:id,username,look')->get()
+                : new Collection,
         ];
     }
 

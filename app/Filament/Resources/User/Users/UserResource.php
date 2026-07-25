@@ -2,20 +2,17 @@
 
 namespace App\Filament\Resources\User\Users;
 
+use App\Emulator\Contracts\PlayerSettingsRepository;
+use App\Emulator\Contracts\RankRepository;
 use App\Emulator\Data\Feature;
 use App\Emulator\Emulator;
 use App\Filament\Resources\User\Users\Pages\CreateUser;
 use App\Filament\Resources\User\Users\Pages\EditUser;
 use App\Filament\Resources\User\Users\Pages\ListUsers;
 use App\Filament\Resources\User\Users\Pages\ViewUser;
-use App\Filament\Resources\User\Users\RelationManagers\BadgesRelationManager;
-use App\Filament\Resources\User\Users\RelationManagers\ChatLogPrivateRelationManager;
-use App\Filament\Resources\User\Users\RelationManagers\ChatLogRelationManager;
-use App\Filament\Resources\User\Users\RelationManagers\SettingsRelationManager;
 use App\Filament\Tables\Columns\UserAvatarColumn;
 use App\Filament\Traits\TranslatableResource;
 use App\Models\Community\Staff\WebsiteTeam;
-use App\Models\Game\Permission;
 use App\Models\User;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -63,12 +60,12 @@ class UserResource extends Resource
                                     ->required()
                                     ->disabled()
                                     ->unique(ignoreRecord: true)
-                                    ->maxLength(25),
+                                    ->maxLength(fn (): int => Emulator::constraints()->usernameLength),
 
                                 TextInput::make('motto')
                                     ->label(__('filament::resources.inputs.motto'))
                                     ->required()
-                                    ->maxLength(127),
+                                    ->maxLength(fn (): int => Emulator::constraints()->mottoLength),
 
                                 Select::make('gender')
                                     ->native(false)
@@ -162,6 +159,7 @@ class UserResource extends Resource
                                         TextInput::make('mail')
                                             ->label(__('filament::resources.inputs.email'))
                                             ->email()
+                                            ->maxLength(fn (): int => Emulator::constraints()->emailLength)
                                             ->required(),
                                     ])->collapsible()->collapsed(),
 
@@ -194,9 +192,11 @@ class UserResource extends Resource
                                             ->options(function () {
                                                 $actor = Filament::auth()->user();
 
-                                                return $actor instanceof User
-                                                    ? Permission::query()->where('id', '<', $actor->rank)->pluck('rank_name', 'id')
-                                                    : [];
+                                                if (! $actor instanceof User) {
+                                                    return [];
+                                                }
+
+                                                return app(RankRepository::class)->optionsBelow($actor->rank);
                                             })
                                             ->required(),
 
@@ -220,10 +220,6 @@ class UserResource extends Resource
         }
 
         $query->where('rank', '<', $actor->rank);
-
-        if (Emulator::supports(Feature::EmulatorUserSettings)) {
-            $query->with('settings');
-        }
 
         return $query;
     }
@@ -283,16 +279,7 @@ class UserResource extends Resource
 
     public static function getRelations(): array
     {
-        // These relation managers read Arcturus tables directly, so they only
-        // appear on that driver regardless of what other drivers support.
-        $isArcturus = Emulator::driver() === 'arcturus';
-
-        return array_values(array_filter([
-            Emulator::supports(Feature::EmulatorUserSettings) ? SettingsRelationManager::class : null,
-            Emulator::supports(Feature::UserBadgeManagement) ? BadgesRelationManager::class : null,
-            $isArcturus ? ChatLogRelationManager::class : null,
-            $isArcturus ? ChatLogPrivateRelationManager::class : null,
-        ]));
+        return Emulator::userRelationManagers();
     }
 
     /**
@@ -306,8 +293,8 @@ class UserResource extends Resource
         $formData['currency_5'] = $record->currency('diamonds');
         $formData['currency_101'] = $record->currency('points');
 
-        if (Emulator::supports(Feature::NameChangePermission) && $record->settings) {
-            $formData['allow_change_username'] = $record->settings->can_change_name;
+        if (Emulator::supports(Feature::NameChangePermission)) {
+            $formData['allow_change_username'] = app(PlayerSettingsRepository::class)->canChangeName($record);
         }
 
         return $formData;

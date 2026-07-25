@@ -2,8 +2,7 @@
 
 namespace App\Filament\Resources\Hotel\ChatlogPrivates;
 
-use App\Emulator\Data\Feature;
-use App\Filament\Concerns\RequiresEmulatorFeature;
+use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Filament\Resources\Hotel\ChatlogPrivates\Pages\ManageChatlogPrivates;
 use App\Filament\Traits\TranslatableResource;
 use App\Models\ChatlogPrivate;
@@ -19,11 +18,11 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ChatlogPrivateResource extends Resource
 {
-    use RequiresEmulatorFeature;
+    use RequiresEmulatorDriver;
 
-    protected static function requiredEmulatorFeature(): Feature
+    protected static function requiredEmulatorDriver(): string
     {
-        return Feature::PrivateChatlogs;
+        return 'arcturus';
     }
 
     use TranslatableResource;

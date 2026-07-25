@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
+use App\Emulator\Contracts\RankRepository;
 use App\Models\Community\Staff\WebsiteTeam as StaffWebsiteTeam;
 use App\Models\Community\Teams\WebsiteTeam;
-use App\Models\Game\Permission;
 use App\Models\User;
 use App\Observers\CommunityCacheObserver;
 use App\Observers\UserObserver;
@@ -28,15 +28,19 @@ class EventServiceProvider extends ServiceProvider
 
     protected $observers = [
         User::class => [UserObserver::class, CommunityCacheObserver::class],
-        Permission::class => [CommunityCacheObserver::class],
         StaffWebsiteTeam::class => [CommunityCacheObserver::class],
         WebsiteTeam::class => [CommunityCacheObserver::class],
     ];
 
     /**
-     * Register any events for your application.
+     * A hotel runs one emulator, so only the active driver's rank model needs
+     * to bust the community caches. The model differs per driver, which is why
+     * it cannot be listed in $observers.
      */
-    public function boot(): void {}
+    public function boot(): void
+    {
+        CommunityCacheObserver::observeRanks($this->app->make(RankRepository::class));
+    }
 
     /**
      * Determine if events and listeners should be automatically discovered.

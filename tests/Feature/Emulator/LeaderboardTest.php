@@ -1,10 +1,8 @@
 <?php
 
 use App\Emulator\Contracts\PlayerStatsRepository;
-use App\Emulator\Data\LeaderboardEntry;
 use App\Emulator\Data\Stat;
 use App\Emulator\Drivers\Arcturus\ArcturusPlayerStatsRepository;
-use App\Emulator\Drivers\Plus\PlusPlayerStatsRepository;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -13,9 +11,9 @@ beforeEach(function () {
     installHotel();
 });
 
+/** Arcturus half of the stats conformance suite; Ada's is in tests/Ada. */
 dataset('stats drivers', [
     'arcturus' => [fn (): PlayerStatsRepository => new ArcturusPlayerStatsRepository],
-    'plus' => [fn (): PlayerStatsRepository => new PlusPlayerStatsRepository],
 ]);
 
 test('the stats leaderboard query runs against the schema', function (PlayerStatsRepository $stats) {
@@ -24,24 +22,21 @@ test('the stats leaderboard query runs against the schema', function (PlayerStat
     expect($stats->topBy(Stat::OnlineTime, 5))->toBeInstanceOf(Collection::class);
 })->with('stats drivers');
 
-test('the plus stats leaderboard ranks players and excludes staff', function () {
-    $active = User::factory()->create();
-    $idle = User::factory()->create();
-    $staff = User::factory()->create();
+test('a ranked leaderboard loads its users in one query', function (PlayerStatsRepository $stats) {
+    User::factory()->count(6)->create();
 
-    DB::table('user_stats')->insert([
-        ['id' => $active->id, 'OnlineTime' => 5_000, 'Respect' => 0, 'AchievementScore' => 0],
-        ['id' => $idle->id, 'OnlineTime' => 100, 'Respect' => 0, 'AchievementScore' => 0],
-        ['id' => $staff->id, 'OnlineTime' => 9_000, 'Respect' => 0, 'AchievementScore' => 0],
-    ]);
+    DB::flushQueryLog();
+    DB::enableQueryLog();
 
-    $ranked = (new PlusPlayerStatsRepository)
-        ->topBy(Stat::OnlineTime, 10, [$staff->id])
-        ->map(fn (LeaderboardEntry $entry) => $entry->user->id)
-        ->all();
+    $stats->topBy(Stat::AchievementScore, 6);
+    $queries = count(DB::getQueryLog());
 
-    expect($ranked)->toBe([$active->id, $idle->id]);
-});
+    DB::disableQueryLog();
+
+    // One ranking query plus the user lookup, and on Ada the hydration pair.
+    // Loading users one by one is the regression this guards against.
+    expect($queries)->toBeLessThanOrEqual(4);
+})->with('stats drivers');
 
 test('the leaderboard page renders with the configured driver', function () {
     $user = User::factory()->create();

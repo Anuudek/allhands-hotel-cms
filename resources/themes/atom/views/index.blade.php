@@ -22,7 +22,7 @@
             </x-content.guest-content-card>
         </div>
 
-        @if($photos)
+        @if($photos->isNotEmpty())
             <div class="col-span-12">
                 <x-content.guest-content-card icon="camera-icon">
                     <x-slot:title>
