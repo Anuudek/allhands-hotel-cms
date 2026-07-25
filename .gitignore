@@ -44,7 +44,6 @@ RELEASE.md
 
 # Working notes from review sessions, not part of the project.
 CODE_REVIEW.md
-PR_*_REVIEW.md
 
 # The Ada emulator source, checked out alongside Atom for schema reference.
 # It is its own repository and must not be committed here.
