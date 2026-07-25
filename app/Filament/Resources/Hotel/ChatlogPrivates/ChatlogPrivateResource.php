@@ -2,9 +2,7 @@
 
 namespace App\Filament\Resources\Hotel\ChatlogPrivates;
 
-use App\Emulator\Data\Feature;
 use App\Filament\Concerns\RequiresEmulatorDriver;
-use App\Filament\Concerns\RequiresEmulatorFeature;
 use App\Filament\Concerns\TranslatableResource;
 use App\Filament\Resources\Hotel\ChatlogPrivates\Pages\ManageChatlogPrivates;
 use App\Models\ChatlogPrivate;
