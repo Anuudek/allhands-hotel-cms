@@ -6,6 +6,7 @@ use App\Emulator\Contracts\BadgeRepository;
 use App\Emulator\Data\OwnedBadge;
 use App\Models\Game\Player\UserBadge;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -13,16 +14,22 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 class ArcturusBadgeRepository implements BadgeRepository
 {
+    /** @return HasMany<UserBadge, User> */
+    public function relation(User $user): HasMany
+    {
+        return $user->hasMany(UserBadge::class, 'user_id');
+    }
+
     public function codes(User $user): array
     {
-        return $user->badges()->pluck('badge_code')->all();
+        return $this->relation($user)->pluck('badge_code')->all();
     }
 
     public function grant(User $user, string $badge): void
     {
         // users_badges has no single-column key Eloquent can address, so guard
         // for idempotency and insert through the query builder.
-        if ($user->badges()->where('badge_code', $badge)->exists()) {
+        if ($this->relation($user)->where('badge_code', $badge)->exists()) {
             return;
         }
 
@@ -35,14 +42,14 @@ class ArcturusBadgeRepository implements BadgeRepository
 
     public function revoke(User $user, string $badge): void
     {
-        $user->badges()->where('badge_code', $badge)->delete();
+        $this->relation($user)->where('badge_code', $badge)->delete();
     }
 
     public function paginate(User $user, int $perPage, string $pageName): LengthAwarePaginator
     {
-        return $user->badges()
+        return $this->relation($user)
             ->orderByDesc('id')
             ->paginate($perPage, ['*'], $pageName)
-            ->through(fn (UserBadge $row) => new OwnedBadge($row->badge_code, (int) $row->slot_id));
+            ->through(fn ($row) => new OwnedBadge($row->badge_code, (int) $row->slot_id));
     }
 }

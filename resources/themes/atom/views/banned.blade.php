@@ -19,7 +19,8 @@
                             </p>
 
                             <p>
-                                <strong>{{ __('Ban expiration:') }}</strong> {{ date('Y/m/d', $ban->ban_expire) }}
+                                <strong>{{ __('Ban expiration:') }}</strong>
+                                {{ $ban->ban_expire === null ? __('Never') : date('Y/m/d', $ban->ban_expire) }}
                             </p>
                         </div>
 

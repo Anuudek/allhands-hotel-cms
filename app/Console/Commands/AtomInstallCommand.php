@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Emulator\EmulatorManager;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Facades\Schema;
 use PDO;
 use PDOException;
 use Symfony\Component\Console\Input\StreamableInputInterface;
@@ -16,7 +16,7 @@ use function Laravel\Prompts\info;
 use function Laravel\Prompts\intro;
 use function Laravel\Prompts\note;
 use function Laravel\Prompts\outro;
-use function Laravel\Prompts\progress;
+use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\warning;
 
@@ -24,20 +24,20 @@ use function Laravel\Prompts\warning;
 class AtomInstallCommand extends Command
 {
     protected $signature = 'atom:install
+        {--emulator= : Registered emulator driver key to install against}
         {--sql= : Path to a custom Arcturus base SQL dump (.sql or .sql.gz)}
         {--catalog-sql= : Path to a custom catalog SQL dump (.sql or .sql.gz)}
+        {--fresh : Drop every table in the target database before importing (destroys existing data)}
         {--skip-arcturus : Skip importing the bundled Arcturus base database and catalog}
         {--skip-catalog : Skip importing the bundled catalog on top of the base database}
         {--theme= : Theme to activate and build (atom or dusk)}
         {--skip-build : Skip building theme assets}';
 
-    protected $description = 'One-command installer: configures the database, imports the Arcturus base SQL, links storage, runs migrations with seeders and builds your theme';
+    protected $description = 'One-command installer for a supported emulator';
 
     private const THEMES = ['atom', 'dusk'];
 
-    private const ARCTURUS_MARKER_TABLE = 'emulator_settings';
-
-    public function handle(): int
+    public function handle(EmulatorManager $emulators): int
     {
         $this->attachConsoleInput();
 
@@ -46,18 +46,31 @@ class AtomInstallCommand extends Command
         $this->ensureEnvFile();
         $this->ensureAppKey();
 
+        if (! $this->configureEmulator($emulators)) {
+            return self::FAILURE;
+        }
+
         if (! $this->configureDatabase()) {
             return self::FAILURE;
         }
 
-        if (! $this->option('skip-arcturus') && ! $this->importArcturusDatabase()) {
+        $activeDriver = $emulators->active();
+
+        if (! $activeDriver->installer()->prepare($this)) {
             return self::FAILURE;
         }
 
         $this->linkStorage();
 
-        spin(function () {
-            $this->callSilent('migrate', ['--force' => true]);
+        // The driver was selected after boot, so its migration paths are not
+        // the ones EmulatorServiceProvider registered. Pass both explicitly;
+        // migrate still orders the combined set by filename.
+        spin(function () use ($activeDriver) {
+            $this->callSilent('migrate', [
+                '--force' => true,
+                '--realpath' => true,
+                '--path' => [database_path('migrations'), ...$activeDriver->migrationPaths()],
+            ]);
             $this->callSilent('db:seed', ['--force' => true]);
         }, 'Running migrations and seeders...');
         info('Migrations and seeders completed.');
@@ -67,6 +80,35 @@ class AtomInstallCommand extends Command
         outro('Atom CMS is installed! Serve the app and visit /installation to finish configuring your hotel.');
 
         return self::SUCCESS;
+    }
+
+    private function configureEmulator(EmulatorManager $emulators): bool
+    {
+        $driver = $this->option('emulator');
+
+        if ($driver === null && $this->input->isInteractive()) {
+            $driver = select(
+                label: 'Which emulator does this hotel run?',
+                options: $emulators->choices(),
+                default: $emulators->active()->key(),
+                hint: 'A hotel runs one emulator and does not switch later.',
+            );
+        }
+
+        $driver = is_string($driver) ? strtolower($driver) : $emulators->active()->key();
+
+        try {
+            $activeDriver = $emulators->select($driver);
+        } catch (\InvalidArgumentException $exception) {
+            error($exception->getMessage());
+
+            return false;
+        }
+
+        $this->writeEnvValue('EMULATOR_DRIVER', $driver);
+        info('Using the ' . $activeDriver->label() . ' emulator driver.');
+
+        return true;
     }
 
     private function ensureEnvFile(): void
@@ -118,7 +160,8 @@ class AtomInstallCommand extends Command
                 $this->line("Use 'mariadb' for Docker, or '127.0.0.1' for a database running on this computer.");
                 $current['host'] = (string) $this->ask('Database host', $defaultHost);
                 $current['port'] = (string) $this->ask('Database port', $current['port']);
-                $current['database'] = (string) $this->ask('Database name (shared by Atom and Arcturus)', $current['database']);
+                $emulator = app(EmulatorManager::class)->active()->label();
+                $current['database'] = (string) $this->ask("Database name (shared by Atom and {$emulator})", $current['database']);
                 $current['username'] = (string) $this->ask('Database username', $current['username']);
 
                 $password = $this->secret('Database password (leave empty to keep the value from .env)');
@@ -247,19 +290,7 @@ class AtomInstallCommand extends Command
             'DB_USERNAME' => $config['username'],
             'DB_PASSWORD' => $config['password'],
         ] as $key => $value) {
-            $line = str_contains((string) $value, ' ') ? sprintf('%s="%s"', $key, $value) : sprintf('%s=%s', $key, $value);
-
-            if (preg_match("/^{$key}=.*$/m", $contents) === 1) {
-                $updated = preg_replace("/^{$key}=.*$/m", $line, $contents);
-
-                if (! is_string($updated)) {
-                    throw new \RuntimeException("Unable to update {$key} in environment file: {$path}");
-                }
-
-                $contents = $updated;
-            } else {
-                $contents .= PHP_EOL . $line;
-            }
+            $contents = $this->replaceEnvValue($contents, $key, $value, $path);
         }
 
         if (file_put_contents($path, $contents) === false) {
@@ -267,111 +298,37 @@ class AtomInstallCommand extends Command
         }
     }
 
-    private function importArcturusDatabase(): bool
+    private function writeEnvValue(string $key, string $value): void
     {
-        if (Schema::hasTable(self::ARCTURUS_MARKER_TABLE)) {
-            note('Arcturus tables already exist - skipping the base database and catalog import.');
+        $path = base_path('.env');
+        $contents = file_get_contents($path);
 
-            return true;
+        if (! is_string($contents)) {
+            throw new \RuntimeException("Unable to read environment file: {$path}");
         }
 
-        $basePath = $this->option('sql') ?: database_path('arcturus/BaseDB-MS-3.5.5.sql.gz');
+        $contents = $this->replaceEnvValue($contents, $key, $value, $path);
 
-        if (! $this->importDump($basePath, 'Arcturus base database (Morningstar 3.5.5)')) {
-            return false;
+        if (file_put_contents($path, $contents) === false) {
+            throw new \RuntimeException("Unable to write environment file: {$path}");
         }
-
-        if ($this->option('skip-catalog')) {
-            return true;
-        }
-
-        $catalogPath = $this->option('catalog-sql') ?: database_path('arcturus/catalog.sql.gz');
-
-        return $this->importDump($catalogPath, 'catalog');
     }
 
-    private function importDump(string $path, string $label): bool
+    private function replaceEnvValue(string $contents, string $key, string $value, string $path): string
     {
-        if (! file_exists($path)) {
-            error("SQL dump not found at: {$path}");
+        $line = str_contains($value, ' ') ? sprintf('%s="%s"', $key, $value) : sprintf('%s=%s', $key, $value);
 
-            return false;
+        if (preg_match("/^{$key}=.*$/m", $contents) !== 1) {
+            return $contents . PHP_EOL . $line;
         }
 
-        $statements = spin(fn () => $this->countStatements($path), "Preparing {$label} import...");
+        $updated = preg_replace("/^{$key}=.*$/m", $line, $contents);
 
-        $progress = progress("Importing {$label}", $statements);
-        $progress->start();
-
-        try {
-            foreach ($this->readStatements($path) as $statement) {
-                DB::connection()->getPdo()->exec($statement);
-                $progress->advance();
-            }
-        } catch (Throwable $exception) {
-            $progress->finish();
-            error('Import failed: ' . $exception->getMessage());
-            warning('The database may be partially imported. Drop and recreate it, then re-run: php artisan atom:install');
-
-            return false;
+        if (! is_string($updated)) {
+            throw new \RuntimeException("Unable to update {$key} in environment file: {$path}");
         }
 
-        $progress->finish();
-        info(ucfirst($label) . ' imported.');
-
-        return true;
-    }
-
-    private function countStatements(string $path): int
-    {
-        $count = 0;
-
-        foreach ($this->readStatements($path) as $statement) {
-            $count++;
-        }
-
-        return $count;
-    }
-
-    /**
-     * Stream the dump (plain or gzipped) and yield one SQL statement at a
-     * time. The dump is written one statement per line except CREATE TABLE
-     * blocks, so a trailing semicolon at end-of-line terminates a statement.
-     *
-     * @return \Generator<int, string>
-     */
-    private function readStatements(string $path): \Generator
-    {
-        $handle = gzopen($path, 'rb');
-
-        if ($handle === false) {
-            throw new \RuntimeException("Unable to open SQL dump: {$path}");
-        }
-
-        try {
-            $buffer = '';
-
-            while (($line = gzgets($handle)) !== false) {
-                $trimmed = trim($line);
-
-                if ($buffer === '' && ($trimmed === '' || str_starts_with($trimmed, '--'))) {
-                    continue;
-                }
-
-                $buffer .= $line;
-
-                if (str_ends_with(rtrim($line), ';')) {
-                    yield $buffer;
-                    $buffer = '';
-                }
-            }
-
-            if (trim($buffer) !== '') {
-                yield $buffer;
-            }
-        } finally {
-            gzclose($handle);
-        }
+        return $updated;
     }
 
     private function setUpTheme(): void

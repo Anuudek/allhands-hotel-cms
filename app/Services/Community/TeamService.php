@@ -2,6 +2,7 @@
 
 namespace App\Services\Community;
 
+use App\Emulator\Contracts\RankRepository;
 use App\Models\Community\Teams\WebsiteTeam;
 use App\Support\CommunityCache;
 use Illuminate\Database\Eloquent\Collection;
@@ -26,7 +27,7 @@ class TeamService
             ->orderByDesc('id')
             ->with(['users' => function ($query) {
                 $query->select('id', 'username', 'look', 'motto', 'rank', 'team_id', 'online')
-                    ->with('permission:id,rank_name,staff_background');
+                    ->with(['permission' => fn ($query) => app(RankRepository::class)->forDisplay($query)]);
             }])
             ->get();
 

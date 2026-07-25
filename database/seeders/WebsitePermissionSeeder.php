@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Miscellaneous\WebsitePermission;
+use App\Support\PermissionRanks;
 use Illuminate\Database\Seeder;
 
 class WebsitePermissionSeeder extends Seeder
@@ -50,7 +51,7 @@ class WebsitePermissionSeeder extends Seeder
         foreach ($permissions as $permission) {
             WebsitePermission::firstOrCreate(['permission' => $permission['permission']], [
                 'permission' => $permission['permission'],
-                'min_rank' => $permission['min_rank'],
+                'min_rank' => PermissionRanks::scale((int) $permission['min_rank']),
                 'description' => $permission['description'],
             ]);
         }

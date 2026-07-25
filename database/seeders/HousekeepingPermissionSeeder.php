@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\WebsiteHousekeepingPermission;
+use App\Support\PermissionRanks;
 use Illuminate\Database\Seeder;
 
 class HousekeepingPermissionSeeder extends Seeder
@@ -180,7 +181,7 @@ class HousekeepingPermissionSeeder extends Seeder
         foreach ($permissions as $permission) {
             WebsiteHousekeepingPermission::query()->firstOrCreate(['permission' => $permission['permission']], [
                 'permission' => $permission['permission'],
-                'min_rank' => $permission['min_rank'],
+                'min_rank' => PermissionRanks::scale((int) $permission['min_rank']),
                 'description' => $permission['description'],
             ]);
         }

@@ -8,11 +8,17 @@ use Illuminate\Support\Collection;
 
 /**
  * Reads player statistics (online time, respects, achievement score) that each
- * emulator stores in its own way - Arcturus in users_settings, Plus in
- * user_stats, with different column names.
+ * emulator stores in its own way - Arcturus in users_settings and Ada across
+ * player_data and player_respects.
  */
 interface PlayerStatsRepository
 {
+    /**
+     * Whether the emulator persists this statistic at all. Rankings for
+     * unsupported statistics are hidden instead of rendered empty.
+     */
+    public function supports(Stat $stat): bool;
+
     /**
      * The highest-ranked players by a statistic, highest first.
      *

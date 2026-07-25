@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Hotel\Achievements;
 
 use App\Enums\AchievementCategory;
 use App\Enums\CurrencyTypes;
+use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Filament\Resources\Hotel\Achievements\Pages\CreateAchievement;
 use App\Filament\Resources\Hotel\Achievements\Pages\EditAchievement;
 use App\Filament\Resources\Hotel\Achievements\Pages\ListAchievements;
@@ -26,6 +27,7 @@ use Filament\Tables\Table;
 
 class AchievementResource extends Resource
 {
+    use RequiresEmulatorDriver;
     use TranslatableResource;
 
     protected static ?string $model = Achievement::class;
@@ -37,6 +39,11 @@ class AchievementResource extends Resource
     public static string $translateIdentifier = 'achievements';
 
     protected static ?string $slug = 'hotel/achievements';
+
+    protected static function requiredEmulatorDriver(): string
+    {
+        return 'arcturus';
+    }
 
     public static function form(Schema $schema): Schema
     {

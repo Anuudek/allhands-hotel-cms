@@ -3,6 +3,8 @@
 namespace App\Models\Compositions;
 
 use App\Emulator\Contracts\BadgeRepository;
+use App\Emulator\Contracts\PlayerRepository;
+use App\Emulator\Contracts\RoomRepository;
 use App\Enums\HomeItemType;
 use App\Models\Home\HomeItem;
 use App\Models\Home\UserHomeItem;
@@ -104,9 +106,9 @@ trait HasHome
 
     public function loadRoomsForHome(): self
     {
-        return $this->load([
-            'rooms' => fn (HasMany $query) => $query->select('id', 'owner_id', 'name', 'description', 'state'),
-        ]);
+        $this->setRelation('rooms', app(RoomRepository::class)->forHome($this));
+
+        return $this;
     }
 
     public function loadRatingsForHome(): self
@@ -127,14 +129,9 @@ trait HasHome
 
     public function loadFriendsForHome(string $routeName): self
     {
-        $this->setRelation('friends',
-            $this->friends()
-                ->select('user_two_id')
-                ->with('user:id,username,look,online')
-                ->orderByDesc('id')
-                ->paginate(8, ['*'], 'friends_page')
-                ->withPath(route($routeName, $this->username)),
-        );
+        $this->setRelation('friends', app(PlayerRepository::class)
+            ->friendsForHome($this, 8, 'friends_page')
+            ->withPath(route($routeName, $this->username)));
 
         return $this;
     }

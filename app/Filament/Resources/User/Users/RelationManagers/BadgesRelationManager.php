@@ -24,7 +24,7 @@ class BadgesRelationManager extends RelationManager
 
     protected static string|\UnitEnum|null $navigationGroup = null;
 
-    protected static string $relationship = 'badges';
+    protected static string $relationship = 'emulatorBadges';
 
     protected static ?string $recordTitleAttribute = 'badge_code';
 

@@ -2,12 +2,15 @@
 
 namespace App\Services\User;
 
+use App\Emulator\Contracts\PlayerRepository;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class UserApiService
 {
+    public function __construct(private readonly PlayerRepository $players) {}
+
     public function fetchUser(string $username): ?User
     {
         return User::query()
@@ -25,9 +28,9 @@ class UserApiService
     {
         $cacheKey = sprintf('api_online_users:%s:%d', implode(',', $columns), $limit);
 
-        return Cache::remember($cacheKey, now()->addSeconds(30), fn () => User::query()
+        return Cache::remember($cacheKey, now()->addSeconds(30), fn () => $this->players
+            ->whereOnline(User::query())
             ->select($columns)
-            ->where('online', '1')
             ->inRandomOrder()
             ->limit($limit)
             ->get());
@@ -35,6 +38,6 @@ class UserApiService
 
     public function onlineUserCount(): int
     {
-        return User::where('online', '1')->count();
+        return $this->players->whereOnline(User::query())->count();
     }
 }

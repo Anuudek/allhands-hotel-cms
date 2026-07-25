@@ -2,8 +2,9 @@
 
 namespace App\Models\Shop;
 
+use App\Emulator\Contracts\RankRepository;
+use App\Emulator\Models\Rank;
 use App\Models\Game\Furniture\ItemBase;
-use App\Models\Game\Permission;
 use App\Support\StorefrontMoney;
 use Brick\Money\Money;
 use Illuminate\Database\Eloquent\Model;
@@ -32,7 +33,7 @@ use Illuminate\Support\Collection;
  * @property Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, WebsiteShopArticleFeature> $features
  * @property-read int|null $features_count
- * @property-read Permission|null $rank
+ * @property-read Rank|null $rank
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebsiteShopArticle newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WebsiteShopArticle newQuery()
@@ -74,10 +75,14 @@ class WebsiteShopArticle extends Model
         return ItemBase::whereIn('id', $furnitureIds)->get();
     }
 
-    /** @return HasOne<Permission, $this> */
+    /** @return HasOne<Rank, $this> */
     public function rank(): HasOne
     {
-        return $this->hasOne(Permission::class, 'id', 'give_rank');
+        return $this->hasOne(
+            app(RankRepository::class)->model(),
+            'id',
+            'give_rank',
+        );
     }
 
     /** @return HasMany<WebsiteShopArticleFeature, $this> */

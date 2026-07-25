@@ -39,6 +39,6 @@ class ArcturusBanRepository implements BanRepository
     {
         return $ban === null
             ? null
-            : new BanInfo((string) $ban->ban_reason, (int) $ban->ban_expire);
+            : new BanInfo((string) $ban->type, (string) $ban->ban_reason, (int) $ban->ban_expire);
     }
 }

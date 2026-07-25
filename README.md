@@ -61,7 +61,7 @@ Experience Atom CMS with our official themes:
 | MariaDB | 10.x or higher |
 | Composer | v2 |
 | Node.js | LTS |
-| Database | Arcturus Morningstar 3.5.5 (bundled, imported by the installer) |
+| Emulator database | Arcturus Morningstar 3.5.5 (default) or Ada |
 
 ### Required PHP Extensions
 
@@ -86,7 +86,7 @@ extension=intl
 
 ### Quick Setup (Recommended)
 
-One command installs everything - dependencies, the bundled Arcturus Morningstar 3.5.5 base database with an up-to-date catalog, app key, storage link, migrations, seeders and your theme's assets:
+One command installs everything - dependencies, emulator database integration, app key, storage link, migrations, seeders and your theme's assets:
 
 ```bash
 git clone https://github.com/ObjectRetros/atomcms.git
@@ -95,19 +95,50 @@ cd atomcms
 composer setup
 ```
 
-The installer prompts for your database credentials, offers to create the database if it doesn't exist, and imports the Arcturus base SQL automatically (skipped if the tables already exist). On Windows it connects the questions directly to the console even though Composer cannot allocate a child-process TTY. It then asks which theme you want (atom or dusk), activates it and builds its assets. When it finishes, serve the site and visit `/installation` to configure your hotel.
+The installer asks which emulator you use. Arcturus imports the bundled base SQL automatically. For Ada, start the emulator once first so its EF migrations create the database, then run `php artisan atom:install --emulator=ada` against that same database. The installer then activates and builds your chosen theme. When it finishes, serve the site and visit `/installation` to configure your hotel.
+
+Docker Compose includes separate `mariadb` and `mariadb-ada` services with independent volumes, so testing Ada never requires clearing the Arcturus database. Use `mariadb-ada:3306` from another Compose service, or `127.0.0.1:3308` from the host. The default Ada database and credentials are `atomcms_ada`, `atomcms`, and `password`. Point Ada at it first so EF applies its migrations, then set Atom to the same database with `EMULATOR_DRIVER=ada`.
 
 Useful variations:
 
 ```bash
 php artisan atom:install                            # Re-run just the installer (no dependency install)
 php artisan atom:install --sql=/path/to/db.sql      # Use your own Arcturus dump (.sql or .sql.gz)
+php artisan atom:install --emulator=ada             # Install against an EF-migrated Ada database
 php artisan atom:install --catalog-sql=/path/to.sql # Use your own catalog dump on top of the base
+php artisan atom:install --fresh                    # Clear the target database first (destroys existing data)
 php artisan atom:install --skip-catalog             # Keep the stock catalog from the base database
 php artisan atom:install --skip-arcturus            # Skip the base database + catalog import entirely
 php artisan atom:install --theme=dusk               # Pick the theme without being asked
 php artisan atom:install --skip-build               # Skip building theme assets (npm run build:atom|dusk)
 ```
+
+### What differs between the emulators
+
+A hotel runs one emulator and stays on it. Currencies, badges, bans, furniture,
+rooms, ranks, friends and player statistics all go through the driver, so the
+site behaves the same either way. What Ada has no schema for is hidden rather
+than shown empty:
+
+| Surface | Arcturus | Ada |
+| ------- | -------- | --- |
+| RCON (live changes to online players) | Yes | No - changes land in the database and reach the player on reconnect |
+| Camera photos | Yes | Hidden; Ada stores no photos |
+| Hours-online ranking | Yes | Hidden; Ada does not record session duration |
+| Word filter and command logs | Yes | Not stored by Ada |
+| Per-player name-change grant | Yes | Not stored by Ada |
+| Housekeeping for catalog, chatlogs, bans, ranks and emulator settings | Arcturus resources | Ada resources over its own tables |
+
+The test suite mirrors this split. `tests/Feature` runs against the Arcturus
+schema and `tests/Ada` against a database of its own, seeded from a real
+EF-migrated Ada database (`database/ada/schema.sql`). Create it once with
+`CREATE DATABASE testing_ada;` - the two emulators own overlapping table names,
+so neither can be tested honestly inside the other's database.
+
+On Ada, Atom keeps a compatibility `users` row so its own foreign keys stay
+valid. The CMS writes flow out to Ada's tables, and every user query is
+refreshed from Ada before it is used, so a player's live look, motto, balances
+and presence are always Ada's values rather than the mirror's.
 
 Prefer to do it step by step? Follow the manual guides below.
 

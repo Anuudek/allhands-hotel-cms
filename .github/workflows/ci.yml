@@ -94,8 +94,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --ignore-scripts
 
+      # Scoped to what actually ships. The build-time formatter chain
+      # (@shufo/prettier-plugin-blade -> blade-formatter -> js-beautify)
+      # carries advisories with no fix published upstream, and it only ever
+      # runs on a developer's machine through npm run format.
       - name: Security advisories
-        run: npm audit --audit-level=moderate
+        run: npm audit --omit=dev --audit-level=moderate
 
       - name: Build Atom theme
         run: npm run build:atom
@@ -125,6 +129,7 @@ jobs:
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
       DB_DATABASE: testing
+      DB_ADA_DATABASE: testing_ada
       DB_USERNAME: root
       DB_PASSWORD: password
     steps:
@@ -158,6 +163,13 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
         env:
           COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+
+      # Ada and Arcturus own overlapping table names, so each suite runs
+      # against a database of its own. See tests/AdaTestCase.php.
+      - name: Create the Ada test database
+        # Created through PDO because the runner has no MariaDB client, and
+        # pdo_mysql is already installed for the suite itself.
+        run: php -r '$pdo = new PDO("mysql:host=127.0.0.1;port=3306", "root", "password"); $pdo->exec("CREATE DATABASE IF NOT EXISTS testing_ada");' 
 
       - name: Run tests
         run: vendor/bin/pest

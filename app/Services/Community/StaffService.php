@@ -2,7 +2,8 @@
 
 namespace App\Services\Community;
 
-use App\Models\Game\Permission;
+use App\Emulator\Contracts\RankRepository;
+use App\Emulator\Models\Rank;
 use App\Models\User;
 use App\Support\CommunityCache;
 use Illuminate\Database\Eloquent\Collection;
@@ -10,24 +11,15 @@ use Illuminate\Support\Facades\Cache;
 
 class StaffService
 {
-    /** @return Collection<int, Permission> */
+    public function __construct(private readonly RankRepository $ranks) {}
+
+    /** @return Collection<int, covariant Rank> */
     public function fetchStaffPositions(User $viewer): Collection
     {
-        $cacheEnabled = setting('enable_caching') === '1';
         $includeHidden = $viewer->rank >= (int) setting('min_rank_to_see_hidden_staff');
-        $resolve = fn (): Collection => Permission::query()
-            ->select('id', 'rank_name', 'badge', 'staff_color', 'job_description')
-            ->when(! $includeHidden, fn ($query) => $query->where('hidden_rank', false))
-            ->where('id', '>=', setting('min_staff_rank'))
-            ->orderByDesc('id')
-            ->with(['users' => function ($query) use ($includeHidden) {
-                $query->select('id', 'username', 'rank', 'motto', 'look', 'hidden_staff', 'online')
-                    ->when(! $includeHidden, fn ($query) => $query->where('hidden_staff', false))
-                    ->with('permission:id,rank_name,staff_background');
-            }])
-            ->get();
+        $resolve = fn (): Collection => $this->ranks->staffPositions($includeHidden);
 
-        if (! $cacheEnabled) {
+        if (setting('enable_caching') !== '1') {
             return $resolve();
         }
 

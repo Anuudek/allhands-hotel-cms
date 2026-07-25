@@ -14,7 +14,9 @@
             <x-leaderboard-card title="{{ __('Top credits') }}" icon="credits.png" :data="$credits" valueType="Credits" />
             <x-leaderboard-card title="{{ __('Top duckets') }}" icon="duckets.png" :data="$duckets" valueType="Duckets" />
             <x-leaderboard-card title="{{ __('Top diamonds') }}" icon="diamond.png" :data="$diamonds" valueType="Diamonds" />
-            <x-leaderboard-card title="{{ __('Hours online') }}" icon="clock.gif" :data="$mostOnline" valueType="Hours online" :formatValue="fn($value) => round($value / 3600)" />
+            @if ($mostOnline !== null)
+                <x-leaderboard-card title="{{ __('Hours online') }}" icon="clock.gif" :data="$mostOnline" valueType="Hours online" :formatValue="fn($value) => round($value / 3600)" />
+            @endif
             <x-leaderboard-card title="{{ __('Respects received') }}" icon="heart.gif" :data="$respectsReceived" valueType="Respect received" />
             <x-leaderboard-card title="{{ __('Achievement score') }}" icon="star.gif" :data="$achievementScores" valueType="Achievement points" />
         </div>

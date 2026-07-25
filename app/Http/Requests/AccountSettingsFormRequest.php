@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Emulator\Emulator;
 use App\Models\User;
 use App\Rules\CurrentPasswordRule;
 use App\Rules\GoogleRecaptchaRule;
@@ -18,9 +19,9 @@ class AccountSettingsFormRequest extends FormRequest
     {
         $user = AuthenticatedUser::from($this);
         $rules = [
-            'username' => ['sometimes', 'string', sprintf('regex:%s', setting('username_regex')), 'min:3', 'max:25', Rule::unique('users')->ignore($user->id), new WebsiteWordfilterRule],
-            'mail' => ['required', 'email', Rule::unique('users')->ignore($user->id), new WebsiteWordfilterRule],
-            'motto' => ['nullable', 'string', 'max:127', new WebsiteWordfilterRule],
+            'username' => ['sometimes', 'string', sprintf('regex:%s', setting('username_regex')), 'min:3', 'max:' . Emulator::constraints()->usernameLength, Rule::unique('users')->ignore($user->id), new WebsiteWordfilterRule],
+            'mail' => ['required', 'email', 'max:' . Emulator::constraints()->emailLength, Rule::unique('users')->ignore($user->id), new WebsiteWordfilterRule],
+            'motto' => ['nullable', 'string', 'max:' . Emulator::constraints()->mottoLength, new WebsiteWordfilterRule],
             'g-recaptcha-response' => [new GoogleRecaptchaRule],
             'cf-turnstile-response' => [app(Turnstile::class)],
         ];

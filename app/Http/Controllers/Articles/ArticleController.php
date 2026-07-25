@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Articles;
 
+use App\Emulator\Contracts\RankRepository;
 use App\Http\Controllers\Controller;
 use App\Models\Articles\WebsiteArticle;
 use App\Services\Articles\ArticleService;
@@ -32,7 +33,7 @@ class ArticleController extends Controller
     {
         $article->load(['user' => function ($query) {
             $query->select('id', 'username', 'look', 'motto', 'rank', 'hidden_staff', 'online')
-                ->with('permission:id,rank_name,staff_background');
+                ->with(['permission' => fn ($query) => app(RankRepository::class)->forDisplay($query)]);
         }]);
 
         $reactions = $article->reactions()

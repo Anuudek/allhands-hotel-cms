@@ -7,7 +7,6 @@ use App\Models\Miscellaneous\WebsiteInstallation;
 use App\Models\Miscellaneous\WebsiteSetting;
 use App\Rules\ValidateInstallationKeyRule;
 use App\Services\InstallationService;
-use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,20 +35,20 @@ class InstallationController extends Controller
         return to_route('installation.show-step', 1);
     }
 
-    public function showStep(int $currentStep): View
+    public function showStep(int $currentStep): View|RedirectResponse
     {
-        $settings = $this->getSettingsForStep($currentStep);
-        $view = match ($currentStep) {
-            1 => 'installation.step-1',
-            2 => 'installation.step-2',
-            3 => 'installation.step-3',
-            4 => 'installation.step-4',
-            5 => 'installation.step-5',
-            default => throw new Exception('Step does not exist'),
-        };
+        // A resubmitted form, a stale tab or a hand-typed URL can ask for a
+        // step either side of the wizard. Send them to the nearest real one
+        // rather than showing them an exception.
+        if ($currentStep !== $this->clamp($currentStep)) {
+            return to_route('installation.show-step', $this->clamp($currentStep));
+        }
+
+        /** @var view-string $view */
+        $view = "installation.step-{$currentStep}";
 
         return view($view, [
-            'settings' => $settings,
+            'settings' => $this->getSettingsForStep($currentStep),
         ]);
     }
 
@@ -58,7 +57,7 @@ class InstallationController extends Controller
         $this->updateSettings($request);
 
         $installation = $this->installation();
-        $installation->increment('step');
+        $installation->update(['step' => $this->clamp($installation->step + 1)]);
 
         return to_route('installation.show-step', $installation->step);
     }
@@ -66,7 +65,7 @@ class InstallationController extends Controller
     public function previousStep(): RedirectResponse
     {
         $installation = $this->installation();
-        $installation->decrement('step');
+        $installation->update(['step' => $this->clamp($installation->step - 1)]);
 
         return to_route('installation.show-step', $installation->step);
     }
@@ -121,20 +120,20 @@ class InstallationController extends Controller
         return WebsiteInstallation::query()->oldest('id')->firstOrFail();
     }
 
+    private function clamp(int $step): int
+    {
+        return max(WebsiteInstallation::FIRST_STEP, min(WebsiteInstallation::LAST_STEP, $step));
+    }
+
     /** @return Collection<int, WebsiteSetting> */
     private function getSettingsForStep(int $step): Collection
     {
-        $chunkSize = max(1, (int) ceil(WebsiteSetting::count() / 4));
-        $settingsData = array_chunk(WebsiteSetting::all()->pluck('key')->toArray(), $chunkSize);
+        $chunkSize = max(1, (int) ceil(WebsiteSetting::count() / WebsiteInstallation::SETTING_STEPS));
+        $chunks = array_chunk(WebsiteSetting::all()->pluck('key')->toArray(), $chunkSize);
 
-        $settings = match ($step) {
-            1 => $settingsData[0] ?? [],
-            2 => $settingsData[1] ?? [],
-            3 => $settingsData[2] ?? [],
-            4 => $settingsData[3] ?? [],
-            5 => [], // Completion step has no settings
-            default => throw new Exception('Step does not exist'),
-        };
+        // The completion step carries no settings, and so does any chunk the
+        // split did not produce.
+        $settings = $chunks[$step - 1] ?? [];
 
         return WebsiteSetting::query()
             ->whereIn('key', $settings)

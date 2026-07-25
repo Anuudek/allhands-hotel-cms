@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ChatlogRoomResource extends Resource
 {
-    // Bound to the Arcturus chatlogs_room schema; PlusChatlogResource covers Plus.
+    // Bound to Arcturus; Ada has its own EF room-message resource.
     use RequiresEmulatorDriver;
     use TranslatableResource;
 

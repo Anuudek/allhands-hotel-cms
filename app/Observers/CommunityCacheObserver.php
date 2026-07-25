@@ -2,9 +2,10 @@
 
 namespace App\Observers;
 
+use App\Emulator\Contracts\RankRepository;
+use App\Emulator\Models\Rank;
 use App\Models\Community\Staff\WebsiteTeam as StaffWebsiteTeam;
 use App\Models\Community\Teams\WebsiteTeam;
-use App\Models\Game\Permission;
 use App\Models\User;
 use App\Support\CommunityCache;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,16 @@ class CommunityCacheObserver
         'team_id',
         'username',
     ];
+
+    /**
+     * The rank model is driver-specific, so it cannot be listed in the
+     * provider's static observer map and is wired up on the active driver
+     * instead - here, so booting and switching drivers stay in step.
+     */
+    public static function observeRanks(RankRepository $ranks): void
+    {
+        $ranks->model()::observe(self::class);
+    }
 
     public function created(Model $model): void
     {
@@ -64,7 +75,7 @@ class CommunityCacheObserver
             return;
         }
 
-        if ($model instanceof Permission) {
+        if ($model instanceof Rank) {
             CommunityCache::forgetStaffPositions();
             CommunityCache::forgetTeams();
 

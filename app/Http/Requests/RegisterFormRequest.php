@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Actions\Fortify\Rules\PasswordValidationRules;
+use App\Emulator\Emulator;
 use App\Rules\GoogleRecaptchaRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -18,8 +19,8 @@ class RegisterFormRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'username' => ['required', 'string', sprintf('regex:%s', setting('username_regex')), 'max:25', Rule::unique('users')],
-            'mail' => ['required', 'string', 'email', 'max:255', Rule::unique('users')],
+            'username' => ['required', 'string', sprintf('regex:%s', setting('username_regex')), 'max:' . Emulator::constraints()->usernameLength, Rule::unique('users')],
+            'mail' => ['required', 'string', 'email', 'max:' . Emulator::constraints()->emailLength, Rule::unique('users')],
             'password' => $this->passwordRules(),
             'terms' => ['required', 'accepted'],
             'g-recaptcha-response' => [new GoogleRecaptchaRule],

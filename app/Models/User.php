@@ -2,21 +2,19 @@
 
 namespace App\Models;
 
+use App\Emulator\Contracts\BadgeRepository;
 use App\Emulator\Contracts\CurrencyRepository;
+use App\Emulator\Contracts\PlayerRepository;
+use App\Emulator\Contracts\RankRepository;
+use App\Emulator\Models\Rank;
 use App\Enums\CurrencyTypes;
 use App\Models\Articles\WebsiteArticle;
 use App\Models\Articles\WebsiteArticleComment;
+use App\Models\Builders\UserBuilder;
 use App\Models\Community\Staff\WebsiteStaffApplications;
 use App\Models\Community\Staff\WebsiteTeam;
 use App\Models\Compositions\HasHome;
-use App\Models\Game\Furniture\Item;
-use App\Models\Game\Permission;
-use App\Models\Game\Player\MessengerFriendship;
-use App\Models\Game\Player\UserBadge;
-use App\Models\Game\Player\UserCurrency;
 use App\Models\Game\Player\UserSetting;
-use App\Models\Game\Player\UserSubscription;
-use App\Models\Game\Room;
 use App\Models\Help\WebsiteHelpCenterTicket;
 use App\Models\Miscellaneous\CameraWeb;
 use App\Models\Miscellaneous\WebsiteBetaCode;
@@ -32,9 +30,11 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Notifications\DatabaseNotificationCollection;
@@ -42,7 +42,6 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -92,8 +91,6 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read int|null $article_comments_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, WebsiteArticle> $articles
  * @property-read int|null $articles_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, UserBadge> $badges
- * @property-read int|null $badges_count
  * @property-read Ban|null $ban
  * @property-read WebsiteBetaCode|null $betaCode
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ChatlogRoom> $chatLogs
@@ -102,21 +99,13 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read int|null $chat_logs_private_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ClaimedReferralLog> $claimedReferralLog
  * @property-read int|null $claimed_referral_log_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, UserCurrency> $currencies
- * @property-read int|null $currencies_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, MessengerFriendship> $friends
- * @property-read int|null $friends_count
- * @property-read UserSubscription|null $hcSubscription
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Item> $items
- * @property-read int|null $items_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Model> $emulatorBadges
  * @property-read DatabaseNotificationCollection<int, DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
- * @property-read Permission|null $permission
+ * @property-read Rank|null $permission
  * @property-read \Illuminate\Database\Eloquent\Collection<int, CameraWeb> $photos
  * @property-read int|null $photos_count
  * @property-read UserReferral|null $referrals
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Room> $rooms
- * @property-read int|null $rooms_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Session> $sessions
  * @property-read int|null $sessions_count
  * @property-read UserSetting|null $settings
@@ -184,6 +173,16 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public $timestamps = false;
 
+    /**
+     * Every user query is refreshed from the active emulator in one pass.
+     *
+     * @param  Builder  $query
+     */
+    public function newEloquentBuilder($query): UserBuilder
+    {
+        return new UserBuilder($query);
+    }
+
     protected $attributes = [
         'website_balance' => 0,
     ];
@@ -243,14 +242,6 @@ class User extends Authenticatable implements FilamentUser, HasName
         ];
     }
 
-    /**
-     * @return HasMany<UserCurrency, $this>
-     */
-    public function currencies(): HasMany
-    {
-        return $this->hasMany(UserCurrency::class, 'user_id');
-    }
-
     /** @return HasMany<Session, $this> */
     public function sessions(): HasMany
     {
@@ -264,10 +255,14 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $type === null ? 0 : app(CurrencyRepository::class)->balance($this, $type);
     }
 
-    /** @return HasOne<Permission, $this> */
+    /** @return HasOne<Rank, $this> */
     public function permission(): HasOne
     {
-        return $this->hasOne(Permission::class, 'id', 'rank');
+        return $this->hasOne(
+            app(RankRepository::class)->model(),
+            'id',
+            'rank',
+        );
     }
 
     /** @return HasMany<WebsiteArticle, $this> */
@@ -294,24 +289,10 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(ClaimedReferralLog::class);
     }
 
-    /**
-     * @return HasMany<UserBadge, $this>
-     */
-    public function badges(): HasMany
+    /** @return HasMany<covariant Model, User> */
+    public function emulatorBadges(): HasMany
     {
-        return $this->hasMany(UserBadge::class);
-    }
-
-    /** @return HasMany<Room, $this> */
-    public function rooms(): HasMany
-    {
-        return $this->hasMany(Room::class, 'owner_id');
-    }
-
-    /** @return HasMany<MessengerFriendship, $this> */
-    public function friends(): HasMany
-    {
-        return $this->hasMany(MessengerFriendship::class, 'user_one_id');
+        return app(BadgeRepository::class)->relation($this);
     }
 
     public function referralsNeeded(): int
@@ -335,19 +316,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function ssoTicket(): string
     {
-        $maxAttempts = 5;
-
-        for ($i = 0; $i < $maxAttempts; $i++) {
-            $sso = sprintf('%s-%s', Str::replace(' ', '', setting('hotel_name', 'Atom')), Str::uuid());
-
-            if (! User::where('auth_ticket', $sso)->exists()) {
-                $this->update(['auth_ticket' => $sso]);
-
-                return $sso;
-            }
-        }
-
-        throw new \RuntimeException('Failed to generate unique SSO ticket after ' . $maxAttempts . ' attempts.');
+        return app(PlayerRepository::class)->issueSso($this);
     }
 
     /** @return HasOne<WebsiteBetaCode, $this> */
@@ -368,12 +337,6 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(WebsiteStaffApplications::class, 'user_id');
     }
 
-    /** @return HasOne<UserSubscription, $this> */
-    public function hcSubscription(): HasOne
-    {
-        return $this->hasOne(UserSubscription::class);
-    }
-
     /** @return HasMany<WebsiteArticleComment, $this> */
     public function articleComments(): HasMany
     {
@@ -392,12 +355,6 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function usedShopVouchers(): HasMany
     {
         return $this->hasMany(WebsiteUsedShopVoucher::class);
-    }
-
-    /** @return HasMany<Item, $this> */
-    public function items(): HasMany
-    {
-        return $this->hasMany(Item::class, 'user_id');
     }
 
     /** @return HasMany<WebsiteHelpCenterTicket, $this> */
@@ -424,16 +381,10 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(ChatlogPrivate::class, 'user_from_id');
     }
 
-    /** @return Collection<int, MessengerFriendship> */
+    /** @return Collection<int, User> */
     public function getOnlineFriends(int $total = 10): Collection
     {
-        return $this->friends()
-            ->select(['user_two_id', 'users.id', 'users.username', 'users.look', 'users.motto', 'users.last_online'])
-            ->join('users', 'users.id', '=', 'user_two_id')
-            ->where('users.online', '1')
-            ->inRandomOrder()
-            ->limit($total)
-            ->get();
+        return app(PlayerRepository::class)->onlineFriends($this, $total);
     }
 
     public function hasAppliedForPosition(int $rankId): bool

@@ -2,9 +2,11 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\ItemDefinition;
+use App\Emulator\Contracts\FurnitureRepository;
+use App\Emulator\Contracts\RoomRepository;
+use App\Emulator\Data\Feature;
+use App\Emulator\Emulator;
 use App\Models\Miscellaneous\CameraWeb;
-use App\Models\Room;
 use App\Models\User;
 use App\Models\WebsiteBadge;
 use Filament\Support\Enums\IconPosition;
@@ -25,19 +27,19 @@ class TopDashboardOverview extends BaseWidget
                 ->descriptionIcon('heroicon-m-user-group', IconPosition::Before)
                 ->color('success'),
 
-            Stat::make(__('filament::resources.stats.furniture_count.title'), Number::format(ItemDefinition::count(), 0, 1, app()->getLocale()))
+            Stat::make(__('filament::resources.stats.furniture_count.title'), Number::format(app(FurnitureRepository::class)->definitionCount(), 0, 1, app()->getLocale()))
                 ->description(__('filament::resources.stats.furniture_count.description'))
                 ->descriptionIcon('heroicon-m-cube', IconPosition::Before)
                 ->chart([20, 20])
                 ->color('success'),
 
-            Stat::make(__('filament::resources.stats.rooms_count.title'), Number::format(Room::count(), 0, 1, app()->getLocale()))
+            Stat::make(__('filament::resources.stats.rooms_count.title'), Number::format(app(RoomRepository::class)->count(), 0, 1, app()->getLocale()))
                 ->description(__('filament::resources.stats.rooms_count.description'))
                 ->descriptionIcon('heroicon-m-building-storefront', IconPosition::Before)
                 ->chart([20, 20])
                 ->color('success'),
 
-            Stat::make(__('filament::resources.stats.photos_count.title'), Number::format(CameraWeb::count(), 0, 1, app()->getLocale()))
+            Stat::make(__('filament::resources.stats.photos_count.title'), Number::format(Emulator::supports(Feature::CameraPhotos) ? CameraWeb::count() : 0, 0, 1, app()->getLocale()))
                 ->description(__('filament::resources.stats.photos_count.description'))
                 ->descriptionIcon('heroicon-m-camera', IconPosition::Before)
                 ->chart([20, 20])

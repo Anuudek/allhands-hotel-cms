@@ -2,8 +2,7 @@
 
 namespace App\Filament\Resources\Hotel\EmulatorSettings;
 
-use App\Emulator\Data\Feature;
-use App\Filament\Concerns\RequiresEmulatorFeature;
+use App\Filament\Concerns\RequiresEmulatorDriver;
 use App\Filament\Resources\Hotel\EmulatorSettings\Pages\CreateEmulatorSetting;
 use App\Filament\Resources\Hotel\EmulatorSettings\Pages\EditEmulatorSetting;
 use App\Filament\Resources\Hotel\EmulatorSettings\Pages\ListEmulatorSettings;
@@ -20,11 +19,11 @@ use Filament\Tables\Table;
 
 class EmulatorSettingResource extends Resource
 {
-    use RequiresEmulatorFeature;
+    use RequiresEmulatorDriver;
 
-    protected static function requiredEmulatorFeature(): Feature
+    protected static function requiredEmulatorDriver(): string
     {
-        return Feature::EmulatorSettings;
+        return 'arcturus';
     }
 
     use TranslatableResource;

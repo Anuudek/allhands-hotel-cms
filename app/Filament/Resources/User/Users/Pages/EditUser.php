@@ -5,6 +5,7 @@ namespace App\Filament\Resources\User\Users\Pages;
 use App\Actions\SendCurrency;
 use App\Contracts\Rcon;
 use App\Emulator\Contracts\CurrencyRepository;
+use App\Emulator\Contracts\PlayerSettingsRepository;
 use App\Emulator\Data\Feature;
 use App\Emulator\Emulator;
 use App\Enums\CurrencyTypes;
@@ -158,7 +159,7 @@ class EditUser extends EditRecord
             return;
         }
 
-        if ($user->settings === null || $data['allow_change_username'] == $user->settings->can_change_name) {
+        if (($data['allow_change_username'] ?? false) === app(PlayerSettingsRepository::class)->canChangeName($user)) {
             return;
         }
 
@@ -179,11 +180,14 @@ class EditUser extends EditRecord
     /** @param array<string, mixed> $data */
     private function updateNameChangePermission(User $user, array $data): void
     {
-        if (! Emulator::supports(Feature::NameChangePermission) || $user->settings === null) {
+        if (! Emulator::supports(Feature::NameChangePermission)) {
             return;
         }
 
-        $user->settings->update(['can_change_name' => ($data['allow_change_username'] ?? false) ? '1' : '0']);
+        app(PlayerSettingsRepository::class)->setCanChangeName(
+            $user,
+            (bool) ($data['allow_change_username'] ?? false),
+        );
     }
 
     /** @param array<string, mixed> $data */

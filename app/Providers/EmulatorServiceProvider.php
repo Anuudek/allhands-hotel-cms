@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Contracts\Rcon;
+use App\Emulator\EmulatorManager;
+use App\Services\AfterCommitRcon;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -12,13 +15,27 @@ class EmulatorServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $driver = config('emulator.driver');
+        $this->app->singleton(EmulatorManager::class);
 
-        /** @var array<class-string, class-string> $bindings */
-        $bindings = config("emulator.drivers.{$driver}.bindings", []);
+        foreach (EmulatorManager::REPOSITORY_CONTRACTS as $contract) {
+            $this->app->singleton(
+                $contract,
+                fn ($app) => $app->make(EmulatorManager::class)->repository($contract),
+            );
+        }
 
-        foreach ($bindings as $contract => $implementation) {
-            $this->app->bind($contract, $implementation);
+        // Wrapped so RCON sends inside a database transaction only fire once it
+        // commits - a rolled-back purchase never grants items in the emulator.
+        $this->app->singleton(
+            Rcon::class,
+            fn ($app): Rcon => new AfterCommitRcon($app->make(EmulatorManager::class)->active()->rcon()),
+        );
+    }
+
+    public function boot(EmulatorManager $manager): void
+    {
+        foreach ($manager->active()->migrationPaths() as $path) {
+            $this->loadMigrationsFrom($path);
         }
     }
 }

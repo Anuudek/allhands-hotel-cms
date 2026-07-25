@@ -1,6 +1,16 @@
 <?php
 
+use App\Exceptions\RconConnectionException;
 use App\Services\RconService;
+use App\Services\UnsupportedRcon;
+
+test('unsupported emulator drivers never attempt arcturus rcon', function () {
+    $rcon = new UnsupportedRcon('ada');
+
+    expect($rcon->isConnected())->toBeFalse()
+        ->and(fn () => $rcon->sendCommand('disconnect'))
+        ->toThrow(RconConnectionException::class, 'RCON is not supported by emulator driver [ada]');
+});
 
 test('rcon follows the arcturus one-command-per-connection protocol', function () {
     $errorCode = 0;

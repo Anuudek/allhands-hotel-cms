@@ -5,32 +5,10 @@ use App\Data\RconResponse;
 use App\Emulator\Contracts\CurrencyRepository;
 use App\Enums\CurrencyTypes;
 use App\Models\Shop\WebsiteShopCategory;
-use App\Models\Shop\WebsiteShopItem;
-use App\Models\Shop\WebsiteShopPackage;
 use App\Models\Shop\WebsiteShopPurchase;
 use App\Models\User;
 use Database\Seeders\WebsiteShopSeeder;
 use Illuminate\Support\Collection;
-
-function makePackage(array $attributes = []): WebsiteShopPackage
-{
-    $package = WebsiteShopPackage::create([
-        'name' => 'Starter Bundle',
-        'price' => 500, // $5.00
-        ...$attributes,
-    ]);
-
-    $credits = WebsiteShopItem::create([
-        'name' => '100 Credits',
-        'type' => 'currency',
-        'type_value' => 'credits:100',
-        'is_active' => true,
-    ]);
-
-    $package->items()->attach($credits->id, ['quantity' => 2]);
-
-    return $package;
-}
 
 test('the shop lists packages alongside articles', function () {
     installHotel();
