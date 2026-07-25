@@ -78,6 +78,6 @@ class TopDashboardOverview extends BaseWidget
 
     private function format(int $count): string
     {
-        return Number::format($count, 0, 1, app()->getLocale());
+        return (string) Number::format($count, 0, 1, app()->getLocale());
     }
 }
