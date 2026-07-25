@@ -16,6 +16,7 @@ use function Laravel\Prompts\info;
 use function Laravel\Prompts\intro;
 use function Laravel\Prompts\note;
 use function Laravel\Prompts\outro;
+use function Laravel\Prompts\select;
 use function Laravel\Prompts\spin;
 use function Laravel\Prompts\warning;
 
@@ -86,10 +87,11 @@ class AtomInstallCommand extends Command
         $driver = $this->option('emulator');
 
         if ($driver === null && $this->input->isInteractive()) {
-            $driver = $this->choice(
-                'Emulator',
-                array_keys($emulators->drivers()),
-                $emulators->active()->key(),
+            $driver = select(
+                label: 'Which emulator does this hotel run?',
+                options: $emulators->choices(),
+                default: $emulators->active()->key(),
+                hint: 'A hotel runs one emulator and does not switch later.',
             );
         }
 

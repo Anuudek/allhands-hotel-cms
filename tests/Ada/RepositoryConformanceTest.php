@@ -284,3 +284,19 @@ test('ada base roles can reach every seeded permission', function () {
         ->and(app(HousekeepingPermissionsService::class)->allows($player, 'can_access_housekeeping'))->toBeFalse()
         ->and(app(PermissionsService::class)->allows($player, 'housekeeping_access'))->toBeFalse();
 });
+
+test('the ada installer waits on a database ada has not finished building', function () {
+    // Ada creates its schema through EF migrations on first boot, so pointing
+    // the installer at a database it has not touched yet is a matter of
+    // ordering, not a broken setup. Non-interactively there is nobody to wait
+    // for, so it reports and stops instead of blocking a scripted install.
+    expect(app(EmulatorManager::class)->driver('ada')->installer()->prepare(silentCommand()))->toBeTrue();
+
+    Schema::rename('player_navigator_settings', 'player_navigator_settings_hidden');
+
+    try {
+        expect(app(EmulatorManager::class)->driver('ada')->installer()->prepare(silentCommand()))->toBeFalse();
+    } finally {
+        Schema::rename('player_navigator_settings_hidden', 'player_navigator_settings');
+    }
+});
