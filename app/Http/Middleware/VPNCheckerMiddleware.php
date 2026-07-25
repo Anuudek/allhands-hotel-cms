@@ -7,9 +7,9 @@ use App\Models\Miscellaneous\WebsiteIpWhitelist;
 use App\Services\IpLookupService;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class VPNCheckerMiddleware

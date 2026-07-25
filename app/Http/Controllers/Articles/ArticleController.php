@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Articles;
 
-use App\Emulator\Contracts\RankRepository;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ToggleReactionFormRequest;
 use App\Models\Articles\WebsiteArticle;
