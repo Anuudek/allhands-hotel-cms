@@ -159,3 +159,45 @@ test('another visitor cannot hijack an installation in progress', function () {
 
     $this->get(route('installation.show-step', 3))->assertForbidden();
 });
+
+test('a step past the end of the wizard shows the last step instead of an exception', function () {
+    installHotel();
+    $installation = startFreshInstallation();
+
+    // Older builds let a resubmitted form increment the step past the end,
+    // and every later request then died on "Step does not exist".
+    WebsiteInstallation::query()->update(['step' => 9, 'user_ip' => '127.0.0.1']);
+    resetInstallationCaches();
+
+    expect(WebsiteInstallation::first()->step)->toBe(WebsiteInstallation::LAST_STEP);
+
+    $this->get(route('installation.show-step', WebsiteInstallation::LAST_STEP))->assertOk();
+    $this->get(route('installation.show-step', 9))
+        ->assertRedirect(route('installation.show-step', WebsiteInstallation::LAST_STEP));
+
+    $installation->refresh();
+});
+
+test('saving past the last step stays on it rather than running off the end', function () {
+    installHotel();
+    startFreshInstallation();
+    WebsiteInstallation::query()->update(['step' => WebsiteInstallation::LAST_STEP, 'user_ip' => '127.0.0.1']);
+    resetInstallationCaches();
+
+    $this->post(route('installation.save-step'))
+        ->assertRedirect(route('installation.show-step', WebsiteInstallation::LAST_STEP));
+
+    expect(WebsiteInstallation::first()->step)->toBe(WebsiteInstallation::LAST_STEP);
+});
+
+test('going back from the first step stays on it', function () {
+    installHotel();
+    startFreshInstallation();
+    WebsiteInstallation::query()->update(['step' => 1, 'user_ip' => '127.0.0.1']);
+    resetInstallationCaches();
+
+    $this->post(route('installation.previous-step'))
+        ->assertRedirect(route('installation.show-step', 1));
+
+    expect(WebsiteInstallation::first()->step)->toBe(1);
+});
