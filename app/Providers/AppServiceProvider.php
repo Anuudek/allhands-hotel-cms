@@ -85,10 +85,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Password::defaults(fn (): Password => Password::min(12)
-            ->mixedCase()
-            ->numbers()
-            ->symbols());
+        Password::defaults(fn (): Password => Password::min(8)
+            ->numbers());
 
         Model::preventLazyLoading(! $this->app->isProduction());
 
